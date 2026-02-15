@@ -336,7 +336,7 @@
 <body>
     <header>
         <div class="container">
-            <h1>TRAINING PLANNER</h1>
+            <h1>TRAINING PLANNER <span style="font-size: 0.5em; color: var(--text-secondary);">v1.0</span></h1>
             <p class="subtitle">Planification d'entraînement multisport</p>
             <div style="margin-top: 15px;">
                 <button id="gdrive-connect-btn" class="btn btn-primary">
@@ -565,7 +565,7 @@
                 <div id="strength-fields">
                     <div class="form-group">
                         <label for="exercise-sets">Nombre de séries</label>
-                        <input type="number" id="exercise-sets" placeholder="Ex: 3" min="1" max="20" value="3">
+                        <input type="number" id="exercise-sets" placeholder="Ex: 4" min="1" max="20" value="4">
                         <button type="button" class="btn btn-small" id="generate-sets-table" style="margin-top: 10px;">Générer le tableau</button>
                     </div>
                     
@@ -1186,7 +1186,7 @@
             const session = sessions.find(s => s.id === currentSessionId);
             if (!session) return;
             
-            const numSets = parseInt(document.getElementById('exercise-sets').value) || 3;
+            const numSets = parseInt(document.getElementById('exercise-sets').value) || 4;
             const isHyrox = session.type === 'Hyrox🤖';
             
             // Mettre à jour le label si Hyrox
@@ -1311,7 +1311,7 @@
 
             // Réinitialiser le tableau de séries
             document.getElementById('sets-table-container').style.display = 'none';
-            document.getElementById('exercise-sets').value = 3;
+            document.getElementById('exercise-sets').value = 4;
 
             document.getElementById('exercise-modal-title').textContent = 'Ajouter un exercice';
             document.getElementById('submit-exercise-btn').textContent = 'Ajouter';
