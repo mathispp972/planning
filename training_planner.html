@@ -2084,7 +2084,9 @@
                             gdriveAccessToken = tokenResponse.access_token;
                             localStorage.setItem('gdriveAccessToken', gdriveAccessToken);
                             updateGDriveStatus('connected');
-                            syncToGDrive();
+                            console.log('✅ Connecté à Google Drive - Prêt pour la synchronisation manuelle');
+                            // NE PLUS synchroniser automatiquement - uniquement via les boutons
+                            // syncToGDrive();
                         },
                     });
                     gisInited = true;
@@ -2134,8 +2136,10 @@
                 const savedToken = localStorage.getItem('gdriveAccessToken');
                 if (savedToken) {
                     gdriveAccessToken = savedToken;
-                    // Vérifier si le token est valide et charger les données
-                    loadFromGDrive();
+                    console.log('🔑 Token trouvé - Connecté à Google Drive');
+                    updateGDriveStatus('connected');
+                    // NE PAS charger automatiquement - l'utilisateur décide via les boutons
+                    // loadFromGDrive();
                 }
             }
         }
