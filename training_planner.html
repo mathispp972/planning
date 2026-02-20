@@ -628,11 +628,11 @@
                     <label for="exercise-db-name">Nom de l'exercice</label>
                     <input type="text" id="exercise-db-name" placeholder="Ex: Développé couché" required>
                 </div>
-                <div class="form-group">
+                <div class="form-group" id="exercise-db-type-field">
                     <label for="exercise-db-type">Type</label>
                     <select id="exercise-db-type" required>
-                        <option value="Musculation">Musculation</option>
-                        <option value="Hyrox">Hyrox</option>
+                        <option value="Musculation💪">Musculation💪</option>
+                        <option value="Hyrox🤖">Hyrox🤖</option>
                     </select>
                 </div>
                 <div class="form-group" id="muscle-group-field">
@@ -1587,7 +1587,10 @@
             document.getElementById('exercise-db-modal-title').textContent = 'Ajouter un exercice';
             document.getElementById('submit-exercise-db-btn').textContent = 'Enregistrer';
             editingExerciseDbName = null;
-            document.getElementById('exercise-db-type').value = 'Musculation';
+            document.getElementById('exercise-db-name').value = '';
+            document.getElementById('exercise-db-type').value = 'Musculation\uD83D\uDCAA';
+            document.getElementById('exercise-db-type-field').style.display = 'block';
+            document.getElementById('exercise-db-muscle').value = '';
             updateMuscleFieldVisibility();
             document.getElementById('exercise-db-modal').classList.add('active');
         }
@@ -1598,12 +1601,15 @@
             document.getElementById('submit-exercise-db-btn').textContent = 'Enregistrer';
             document.getElementById('exercise-db-name').value = name;
             document.getElementById('exercise-db-type').value = type;
+            document.getElementById('exercise-db-type-field').style.display = 'none';
             
             if (type === 'Musculation💪') {
-                document.getElementById('exercise-db-muscle').value = exerciseDatabase[name];
+                document.getElementById('exercise-db-muscle').value = exerciseDatabase[name] || '';
+                document.getElementById('muscle-group-field').style.display = 'block';
+            } else {
+                document.getElementById('muscle-group-field').style.display = 'none';
             }
             
-            updateMuscleFieldVisibility();
             document.getElementById('exercise-db-modal').classList.add('active');
         }
 
@@ -1627,6 +1633,7 @@
         function closeExerciseDbModal() {
             document.getElementById('exercise-db-modal').classList.remove('active');
             document.getElementById('exercise-db-form').reset();
+            document.getElementById('exercise-db-type-field').style.display = 'block';
             editingExerciseDbName = null;
         }
 
