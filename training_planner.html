@@ -1288,9 +1288,20 @@
                 <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end;">
                     <div style="flex:2; min-width:140px;">
                         <label style="display:block; color:var(--text-secondary); font-size:0.8rem; margin-bottom:4px;">Exercice</label>
-                        <select id="hyrox-ex-name" style="width:100%; padding:10px; background:var(--surface); border:1px solid var(--border); border-radius:6px; color:var(--text-primary);">
-                            ${hyroxExercises.sort().map(n => `<option value="${n}">${n}</option>`).join('')}
-                        </select>
+                        <div style="display:flex; gap:6px;">
+                            <select id="hyrox-ex-name" style="flex:1; padding:10px; background:var(--surface); border:1px solid var(--border); border-radius:6px; color:var(--text-primary);">
+                                ${hyroxExercises.sort().map(n => `<option value="${n}">${n}</option>`).join('')}
+                            </select>
+                            <button type="button" onclick="toggleHyroxNewExercise()" class="btn btn-small" id="hyrox-toggle-new" title="Créer un nouvel exercice">+</button>
+                        </div>
+                        <div id="hyrox-new-exercise-box" style="display:none; margin-top:8px; display:none;">
+                            <div style="display:flex; gap:6px;">
+                                <input type="text" id="hyrox-new-ex-input" placeholder="Nom du nouvel exercice"
+                                    style="flex:1; padding:10px; background:var(--surface); border:1px solid var(--accent-hyrox); border-radius:6px; color:var(--text-primary);">
+                                <button type="button" onclick="createHyroxExerciseInline()" class="btn btn-small btn-primary">Ajouter</button>
+                                <button type="button" onclick="toggleHyroxNewExercise()" class="btn btn-small">✕</button>
+                            </div>
+                        </div>
                     </div>
                     <div style="flex:1; min-width:110px;">
                         <label style="display:block; color:var(--text-secondary); font-size:0.8rem; margin-bottom:4px;">Reps / Distance</label>
@@ -1390,6 +1401,42 @@
 
         function cancelHyroxExercise() {
             document.getElementById('hyrox-exercise-form').style.display = 'none';
+        }
+
+        function toggleHyroxNewExercise() {
+            const box = document.getElementById('hyrox-new-exercise-box');
+            const isVisible = box.style.display !== 'none';
+            box.style.display = isVisible ? 'none' : 'block';
+            if (!isVisible) {
+                document.getElementById('hyrox-new-ex-input').focus();
+            }
+        }
+
+        function createHyroxExerciseInline() {
+            const input = document.getElementById('hyrox-new-ex-input');
+            const name = input.value.trim();
+            if (!name) { alert('Saisis un nom pour le nouvel exercice.'); return; }
+            if (hyroxExercises.includes(name)) { alert('Cet exercice existe déjà.'); return; }
+
+            // Ajouter à la liste globale
+            hyroxExercises.push(name);
+            saveData();
+
+            // Ajouter l'option dans le select et la sélectionner
+            const sel = document.getElementById('hyrox-ex-name');
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = name;
+            // Insérer en ordre alphabétique
+            const options = Array.from(sel.options);
+            const insertBefore = options.find(o => o.value.localeCompare(name) > 0);
+            if (insertBefore) sel.insertBefore(opt, insertBefore);
+            else sel.appendChild(opt);
+            sel.value = name;
+
+            // Masquer le champ de création
+            input.value = '';
+            document.getElementById('hyrox-new-exercise-box').style.display = 'none';
         }
 
         function calculateBest1RM(exercise) {
