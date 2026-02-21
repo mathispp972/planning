@@ -359,7 +359,7 @@
                 <button id="gdrive-connect-btn" class="btn btn-primary">
                     ☁️ Se connecter à Google Drive
                 </button>
-                <div id="gdrive-controls" style="display: none; margin-top: 10px; gap: 10px;">
+                <div id="gdrive-controls" style="display: none; margin-top: 10px; gap: 10px; flex-wrap: wrap;">
                     <button id="gdrive-load-btn" class="btn btn-small" style="background: var(--accent-running);">
                         ⬇️ Charger depuis Drive
                     </button>
@@ -369,6 +369,18 @@
                     <button id="gdrive-disconnect-btn" class="btn btn-small" style="background: #6b7280;">
                         🔌 Déconnecter
                     </button>
+                </div>
+                <div style="margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button id="export-json-btn" class="btn btn-small" style="background: var(--accent-hyrox); color: #000;">
+                        💾 Export JSON
+                    </button>
+                    <button id="import-json-btn" class="btn btn-small" style="background: var(--surface-light);">
+                        📂 Import JSON
+                    </button>
+                    <button id="show-backups-btn" class="btn btn-small" style="background: var(--surface-light);">
+                        🕐 Historique (0)
+                    </button>
+                    <input type="file" id="import-json-input" accept=".json" style="display:none;">
                 </div>
                 <div id="gdrive-status" style="display: none; margin-top: 10px; padding: 10px; background: var(--surface); border-radius: 8px; border-left: 3px solid var(--accent-running);">
                     <span id="gdrive-status-text">☁️ Synchronisé</span>
@@ -2585,8 +2597,8 @@
         document.getElementById('copy-from-session').addEventListener('change', (e) => showCopyPreview(e.target.value));
         document.getElementById('export-excel-btn').addEventListener('click', exportToExcel);
         document.getElementById('gdrive-connect-btn').addEventListener('click', connectToGDrive);
-        document.getElementById('gdrive-load-btn').addEventListener('click', manualLoadFromGDrive);
-        document.getElementById('gdrive-save-btn').addEventListener('click', manualSaveToGDrive);
+        document.getElementById('gdrive-load-btn').addEventListener('click', () => manualLoadFromGDriveWithBackup());
+        document.getElementById('gdrive-save-btn').addEventListener('click', () => manualSaveToGDriveWithBackup());
         document.getElementById('gdrive-disconnect-btn').addEventListener('click', disconnectFromGDrive);
         document.getElementById('close-exercise-db-modal').addEventListener('click', closeExerciseDbModal);
         document.getElementById('cancel-exercise-db-btn').addEventListener('click', closeExerciseDbModal);
@@ -2695,6 +2707,169 @@
 
         loadData();
         renderAll();
+
+        // ─── SYSTÈME DE BACKUPS ───────────────────────────────────────────
+        const MAX_BACKUPS = 7;
+
+        function getBackups() {
+            try { return JSON.parse(localStorage.getItem('trainingBackups') || '[]'); }
+            catch(e) { return []; }
+        }
+
+        function saveBackup(label) {
+            const backups = getBackups();
+            const snapshot = {
+                timestamp: new Date().toISOString(),
+                label: label || 'Sauvegarde manuelle',
+                data: {
+                    sessions: sessions,
+                    exerciseDatabase: exerciseDatabase,
+                    hyroxExercises: hyroxExercises
+                }
+            };
+            backups.unshift(snapshot);
+            if (backups.length > MAX_BACKUPS) backups.splice(MAX_BACKUPS);
+            localStorage.setItem('trainingBackups', JSON.stringify(backups));
+            updateBackupCount();
+        }
+
+        function updateBackupCount() {
+            const count = getBackups().length;
+            document.getElementById('show-backups-btn').textContent = '🕐 Historique (' + count + ')';
+        }
+
+        function restoreBackup(index) {
+            const backups = getBackups();
+            const backup = backups[index];
+            if (!backup) return;
+            const date = new Date(backup.timestamp).toLocaleString('fr-FR');
+            if (!confirm('♻️ Restaurer la sauvegarde du ' + date + ' ?\n\n⚠️ Tes données actuelles seront écrasées.\n(Une sauvegarde automatique sera créée avant la restauration)')) return;
+            saveBackup('Avant restauration du ' + date);
+            sessions = backup.data.sessions || [];
+            exerciseDatabase = backup.data.exerciseDatabase || {};
+            hyroxExercises = backup.data.hyroxExercises || [];
+            saveData();
+            renderAll();
+            document.getElementById('backup-modal').style.display = 'none';
+            alert('✅ Données restaurées !');
+        }
+
+        function deleteBackup(index) {
+            const backups = getBackups();
+            backups.splice(index, 1);
+            localStorage.setItem('trainingBackups', JSON.stringify(backups));
+            renderBackupList();
+            updateBackupCount();
+        }
+
+        function renderBackupList() {
+            const backups = getBackups();
+            const container = document.getElementById('backup-list');
+            if (backups.length === 0) {
+                container.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 20px;">Aucune sauvegarde disponible</p>';
+                return;
+            }
+            container.innerHTML = backups.map((b, i) => {
+                const date = new Date(b.timestamp).toLocaleString('fr-FR');
+                const nbSeances = b.data.sessions ? b.data.sessions.length : 0;
+                const nbExos = b.data.exerciseDatabase ? Object.keys(b.data.exerciseDatabase).length : 0;
+                return '<div style="padding: 14px; background: var(--bg-darker); border-radius: 8px; border-left: 3px solid var(--accent-running); margin-bottom: 10px;">' +
+                    '<div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">' +
+                    '<div>' +
+                    '<div style="font-weight: 700; margin-bottom: 4px;">' + b.label + '</div>' +
+                    '<div style="color: var(--text-secondary); font-size: 0.85rem;">📅 ' + date + ' &nbsp;·&nbsp; ' + nbSeances + ' séances &nbsp;·&nbsp; ' + nbExos + ' exercices</div>' +
+                    '</div>' +
+                    '<div style="display: flex; gap: 6px; flex-shrink: 0;">' +
+                    '<button class="btn btn-small" style="background: var(--accent-running);" onclick="restoreBackup(' + i + ')">♻️ Restaurer</button>' +
+                    '<button class="btn btn-small" style="background: var(--accent-musculation);" onclick="deleteBackup(' + i + ')">🗑️</button>' +
+                    '</div></div></div>';
+            }).join('');
+        }
+
+        // Export JSON
+        document.getElementById('export-json-btn').addEventListener('click', () => {
+            const data = { sessions, exerciseDatabase, hyroxExercises, exportDate: new Date().toISOString() };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'training_backup_' + new Date().toISOString().slice(0, 10) + '.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+
+        // Import JSON
+        document.getElementById('import-json-btn').addEventListener('click', () => {
+            document.getElementById('import-json-input').click();
+        });
+
+        document.getElementById('import-json-input').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                try {
+                    const data = JSON.parse(ev.target.result);
+                    if (!data.sessions) { alert('❌ Fichier JSON invalide (pas de séances trouvées)'); return; }
+                    if (!confirm('📂 Importer ce fichier JSON ?\n\nSéances : ' + data.sessions.length + '\n⚠️ Une sauvegarde automatique sera créée avant l\'import.')) return;
+                    saveBackup('Avant import JSON du ' + new Date().toLocaleString('fr-FR'));
+                    sessions = data.sessions || [];
+                    exerciseDatabase = data.exerciseDatabase || {};
+                    hyroxExercises = data.hyroxExercises || [];
+                    saveData();
+                    renderAll();
+                    alert('✅ Import réussi !');
+                } catch(err) {
+                    alert('❌ Erreur de lecture du fichier : ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+            e.target.value = '';
+        });
+
+        // Historique des backups
+        document.getElementById('show-backups-btn').addEventListener('click', () => {
+            renderBackupList();
+            document.getElementById('backup-modal').style.display = 'flex';
+        });
+
+        document.getElementById('close-backup-modal').addEventListener('click', () => {
+            document.getElementById('backup-modal').style.display = 'none';
+        });
+
+        document.getElementById('create-backup-btn').addEventListener('click', () => {
+            saveBackup('Sauvegarde manuelle du ' + new Date().toLocaleString('fr-FR'));
+            renderBackupList();
+            alert('✅ Sauvegarde créée !');
+        });
+
+        // Backup auto avant chaque sync Drive
+        const _originalManualSave = manualSaveToGDrive;
+        async function manualSaveToGDriveWithBackup() {
+            saveBackup('Avant sync Drive du ' + new Date().toLocaleString('fr-FR'));
+            await _originalManualSave();
+        }
+
+        // Backup auto avant chaque chargement Drive
+        const _originalManualLoad = manualLoadFromGDrive;
+        async function manualLoadFromGDriveWithBackup() {
+            saveBackup('Avant chargement Drive du ' + new Date().toLocaleString('fr-FR'));
+            await _originalManualLoad();
+        }
+
+        updateBackupCount();
     </script>
-</body>
+
+    <!-- Modal Historique des sauvegardes -->
+    <div id="backup-modal" style="display:none; position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(0,0,0,0.8); backdrop-filter: blur(4px); z-index: 2000; align-items: center; justify-content: center;">
+        <div style="background: var(--surface); border-radius: 16px; padding: 30px; max-width: 600px; width: 90%; max-height: 85vh; overflow-y: auto; border: 1px solid var(--border); box-shadow: 0 20px 60px rgba(0,0,0,0.5);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="font-size: 1.5rem; font-weight: 700;">🕐 Historique des sauvegardes</h3>
+                <button id="close-backup-modal" style="background: none; border: none; color: var(--text-secondary); font-size: 2rem; cursor: pointer; line-height: 1;">×</button>
+            </div>
+            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 16px;">Les 7 dernières sauvegardes sont conservées. Une sauvegarde automatique est créée avant chaque sync Drive ou import.</p>
+            <button id="create-backup-btn" class="btn btn-primary btn-small" style="margin-bottom: 20px;">+ Créer une sauvegarde maintenant</button>
+            <div id="backup-list"></div>
+        </div>
+    </div>
 </html>
