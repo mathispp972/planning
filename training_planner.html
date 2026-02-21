@@ -754,6 +754,17 @@
                 hyroxExercises = ['SkiErg', 'Sled Push', 'Sled Pull', 'Burpees', 'Rowing', 'Farmers Carry', 'Sandbag Lunges', 'Wall Balls'];
             }
 
+            // Migration : récupérer les exercices Hyrox présents dans les séances mais absents de hyroxExercises
+            sessions.forEach(session => {
+                if (session.type === 'Hyrox🤖' && session.details) {
+                    session.details.forEach(exercise => {
+                        if (exercise.name && !hyroxExercises.includes(exercise.name)) {
+                            hyroxExercises.push(exercise.name);
+                        }
+                    });
+                }
+            });
+
             // Charger les sessions et appliquer les migrations si nécessaire
             if (stored) {
                 sessions = JSON.parse(stored);
@@ -1445,7 +1456,7 @@
             const select = document.getElementById('exercise-name-select');
             select.innerHTML = '';
             
-            if (sessionType === 'Hyrox') {
+            if (sessionType === 'Hyrox🤖') {
                 hyroxExercises.sort().forEach(name => {
                     const option = document.createElement('option');
                     option.value = name;
@@ -2605,7 +2616,7 @@
         document.getElementById('exercise-db-type').addEventListener('change', updateMuscleFieldVisibility);
         document.getElementById('filter-session-type').addEventListener('change', () => {
             const muscleFilter = document.getElementById('filter-muscle-group');
-            if (document.getElementById('filter-session-type').value === 'Musculation') {
+            if (document.getElementById('filter-session-type').value === 'Musculation💪') {
                 muscleFilter.style.display = 'block';
                 muscleFilter.innerHTML = '<option value="all">Tous les muscles</option>';
                 Object.keys(muscleGroups).forEach(muscle => {
