@@ -176,12 +176,26 @@
             border-color: var(--accent-running);
             box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
         }
-        .set-checkbox {
-            width: 20px;
-            height: 20px;
+        .set-status-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            border: 2px solid var(--border);
+            background: var(--bg-darker);
             cursor: pointer;
-            accent-color: var(--accent-running);
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+            transition: all 0.2s;
+            user-select: none;
+            line-height: 1;
         }
+        .set-status-btn:hover { transform: scale(1.15); }
+        .set-status-btn[data-status="none"]   { border-color: var(--border); background: var(--bg-darker); }
+        .set-status-btn[data-status="done"]   { border-color: var(--accent-cardio); background: rgba(16,185,129,0.15); }
+        .set-status-btn[data-status="failed"] { border-color: var(--accent-musculation); background: rgba(239,68,68,0.15); }
         #sets-table td {
             padding: 8px;
             border-bottom: 1px solid var(--border);
@@ -196,7 +210,10 @@
             font-family: 'JetBrains Mono', monospace;
         }
         .set-validated {
-            background: rgba(16, 185, 129, 0.1) !important;
+            background: rgba(16, 185, 129, 0.08) !important;
+        }
+        .set-failed {
+            background: rgba(239, 68, 68, 0.08) !important;
         }
         
         /* Responsive - Mobile et Tablette */
@@ -579,7 +596,7 @@
                                         <th style="padding: 10px; text-align: center; border-bottom: 2px solid var(--border);" id="reps-header-label">Reps</th>
                                         <th style="padding: 10px; text-align: center; border-bottom: 2px solid var(--border);">Charge (kg)</th>
                                         <th style="padding: 10px; text-align: center; border-bottom: 2px solid var(--border);">RPE (1-10)</th>
-                                        <th style="padding: 10px; text-align: center; border-bottom: 2px solid var(--border);">Validé ✅</th>
+                                        <th style="padding: 10px; text-align: center; border-bottom: 2px solid var(--border);">Statut</th>
                                     </tr>
                                 </thead>
                                 <tbody id="sets-table-body">
@@ -699,13 +716,34 @@
             const stored = localStorage.getItem('trainingSessions');
             const storedExercises = localStorage.getItem('exerciseDatabase');
             const storedHyrox = localStorage.getItem('hyroxExercises');
-            
+
+            // Charger exerciseDatabase et hyroxExercises EN PREMIER
+            if (storedExercises) {
+                exerciseDatabase = JSON.parse(storedExercises);
+            } else {
+                exerciseDatabase = {
+                    'Développé couché': 'Pecs',
+                    'Développé incliné': 'Pecs',
+                    'Tractions': 'Dos',
+                    'Rowing': 'Dos',
+                    'Curl biceps': 'Biceps',
+                    'Développé militaire': 'Epaules',
+                    'Squat': 'Jambes',
+                    'Leg press': 'Jambes'
+                };
+            }
+
+            if (storedHyrox) {
+                hyroxExercises = JSON.parse(storedHyrox);
+            } else {
+                hyroxExercises = ['SkiErg', 'Sled Push', 'Sled Pull', 'Burpees', 'Rowing', 'Farmers Carry', 'Sandbag Lunges', 'Wall Balls'];
+            }
+
+            // Charger les sessions et appliquer les migrations si nécessaire
             if (stored) {
                 sessions = JSON.parse(stored);
-                // Migration: Renommer les anciennes séances et types
                 let migrated = false;
                 sessions.forEach(session => {
-                    // Renommer noms de séances
                     if (session.name === 'Dos/Biceps🦍') {
                         session.name = 'Dos/Epaules/Biceps🦍';
                         migrated = true;
@@ -714,33 +752,16 @@
                         session.name = 'Pecs/Epaules/Triceps👕';
                         migrated = true;
                     }
-                    // Renommer types de séances
-                    if (session.type === 'Running🏃‍➡️') {
-                        session.type = 'Running🏃‍➡️';
-                        migrated = true;
-                    }
-                    if (session.type === 'Musculation💪') {
-                        session.type = 'Musculation💪';
-                        migrated = true;
-                    }
-                    if (session.type === 'Hyrox🤖') {
-                        session.type = 'Hyrox🤖';
-                        migrated = true;
-                    }
-                    if (session.type === 'Cardio❤️‍🔥') {
-                        session.type = 'Cardio❤️‍🔥';
-                        migrated = true;
-                    }
                 });
                 if (migrated) {
-                    saveData();
-                    console.log('Migration effectuée: séances et types renommés');
+                    saveData(); // Sûr : exerciseDatabase et hyroxExercises déjà chargés
+                    console.log('Migration effectuée: séances renommées');
                 }
             } else {
-                // Démarrage avec calendrier vide
                 sessions = [];
                 saveData();
             }
+        }
 
             if (storedExercises) {
                 exerciseDatabase = JSON.parse(storedExercises);
@@ -1112,8 +1133,9 @@
                     let bestSetRM = null;
                     let bestSetIndex = -1;
                     
-                    // Premier passage pour trouver le meilleur 1RM
+                    // Premier passage pour trouver le meilleur 1RM (séries en échec exclues)
                     exercise.setsData.forEach((set, idx) => {
+                        if (set.status === 'failed') return;
                         if (set.load && set.reps && !isNaN(set.reps) && set.reps > 0) {
                             const oneRM = set.load / (1.0278 - 0.0278 * set.reps);
                             if (bestSetRM === null || oneRM > bestSetRM) {
@@ -1125,15 +1147,18 @@
                     
                     // Deuxième passage pour afficher
                     exercise.setsData.forEach((set, idx) => {
-                        const rowClass = set.validated ? ' style="background: rgba(16, 185, 129, 0.1);"' : '';
-                        tableHTML += '<tr' + rowClass + '>';
+                        const status = set.status || (set.validated ? 'done' : 'none');
+                        let rowStyle = '';
+                        if (status === 'done') rowStyle = ' style="background: rgba(16, 185, 129, 0.08);"';
+                        if (status === 'failed') rowStyle = ' style="background: rgba(239, 68, 68, 0.08);"';
+                        tableHTML += '<tr' + rowStyle + '>';
                         tableHTML += '<td style="padding: 8px; text-align: center; font-weight: 700; color: var(--accent-running);">' + set.setNumber + '</td>';
                         tableHTML += '<td style="padding: 8px; text-align: center;">' + (set.reps || '-') + '</td>';
                         tableHTML += '<td style="padding: 8px; text-align: center;">' + (set.load ? set.load + ' kg' : '-') + '</td>';
                         
-                        // Colonne 1RM
+                        // Colonne 1RM (ignorée si série en échec)
                         let rmCell = '-';
-                        if (set.load && set.reps && !isNaN(set.reps) && set.reps > 0) {
+                        if (status !== 'failed' && set.load && set.reps && !isNaN(set.reps) && set.reps > 0) {
                             const oneRM = set.load / (1.0278 - 0.0278 * set.reps);
                             const isBest = (idx === bestSetIndex);
                             rmCell = isBest 
@@ -1143,15 +1168,22 @@
                         tableHTML += '<td style="padding: 8px; text-align: center;">' + rmCell + '</td>';
                         
                         tableHTML += '<td style="padding: 8px; text-align: center;">' + (set.rpe ? '💪 ' + set.rpe + '/10' : '-') + '</td>';
-                        tableHTML += '<td style="padding: 8px; text-align: center;">' + (set.validated ? '✅ Validé' : '⏳ En attente') + '</td>';
+                        
+                        let statusCell = '⏳ En attente';
+                        if (status === 'done') statusCell = '✅ Validé';
+                        if (status === 'failed') statusCell = '❌ Échec';
+                        tableHTML += '<td style="padding: 8px; text-align: center;">' + statusCell + '</td>';
                         tableHTML += '</tr>';
                     });
                     
-                    const validatedCount = exercise.setsData.filter(s => s.validated).length;
-                    const progress = (validatedCount / exercise.setsData.length * 100).toFixed(0);
+                    const doneCount = exercise.setsData.filter(s => (s.status || (s.validated ? 'done' : 'none')) === 'done').length;
+                    const failedCount = exercise.setsData.filter(s => s.status === 'failed').length;
+                    const total = exercise.setsData.length;
                     tableHTML += '</tbody></table>';
                     tableHTML += '<div style="margin-top: 10px; padding: 8px; background: var(--bg-darker); border-radius: 6px; text-align: center;">';
-                    tableHTML += '<strong>Progression: ' + validatedCount + '/' + exercise.setsData.length + ' séries validées (' + progress + '%)</strong>';
+                    tableHTML += '<strong>✅ ' + doneCount + ' validée(s)';
+                    if (failedCount > 0) tableHTML += ' &nbsp;| ❌ ' + failedCount + ' échec(s)';
+                    tableHTML += ' &nbsp;/ ' + total + ' séries au total</strong>';
                     tableHTML += '</div></div></td></tr>';
                 }
             });
@@ -1166,6 +1198,8 @@
             // Si l'exercice a des données détaillées par série
             if (exercise.setsData && exercise.setsData.length > 0) {
                 exercise.setsData.forEach(set => {
+                    // Ignorer les séries en échec pour le calcul du 1RM
+                    if (set.status === 'failed') return;
                     if (set.load && set.reps && !isNaN(set.reps) && set.reps > 0) {
                         const oneRM = set.load / (1.0278 - 0.0278 * set.reps);
                         if (best1RM === null || oneRM > best1RM) {
@@ -1206,17 +1240,28 @@
                     <td><input type="text" class="set-input" data-set="${i}" data-field="reps" placeholder="${isHyrox ? '10 ou 100m' : '10'}" inputmode="numeric" pattern="[0-9.]*"></td>
                     <td><input type="number" class="set-input" data-set="${i}" data-field="load" placeholder="60" step="0.5" min="0" inputmode="decimal"></td>
                     <td><input type="number" class="set-input" data-set="${i}" data-field="rpe" placeholder="7" min="1" max="10" step="1" inputmode="numeric"></td>
-                    <td><input type="checkbox" class="set-checkbox" data-set="${i}" data-field="validated"></td>
+                    <td><button type="button" class="set-status-btn" data-set="${i}" data-field="status" data-status="none">⬜</button></td>
                 `;
                 tbody.appendChild(row);
                 
-                // Ajouter l'événement pour colorer la ligne quand validée
-                const checkbox = row.querySelector('.set-checkbox');
-                checkbox.addEventListener('change', (e) => {
-                    if (e.target.checked) {
+                // Cycle 3 états au clic : none -> done -> failed -> none
+                const btn = row.querySelector('.set-status-btn');
+                btn.addEventListener('click', () => {
+                    const current = btn.getAttribute('data-status');
+                    if (current === 'none') {
+                        btn.setAttribute('data-status', 'done');
+                        btn.textContent = '✅';
+                        row.classList.remove('set-failed');
                         row.classList.add('set-validated');
-                    } else {
+                    } else if (current === 'done') {
+                        btn.setAttribute('data-status', 'failed');
+                        btn.textContent = '❌';
                         row.classList.remove('set-validated');
+                        row.classList.add('set-failed');
+                    } else {
+                        btn.setAttribute('data-status', 'none');
+                        btn.textContent = '⬜';
+                        row.classList.remove('set-validated', 'set-failed');
                     }
                 });
             }
@@ -1237,14 +1282,24 @@
                     const repsInput = row.querySelector('[data-field="reps"]');
                     const loadInput = row.querySelector('[data-field="load"]');
                     const rpeInput = row.querySelector('[data-field="rpe"]');
-                    const validatedCheckbox = row.querySelector('[data-field="validated"]');
+                    const statusBtn = row.querySelector('[data-field="status"]');
                     
                     if (repsInput) repsInput.value = set.reps || '';
                     if (loadInput) loadInput.value = set.load || '';
                     if (rpeInput) rpeInput.value = set.rpe || '';
-                    if (validatedCheckbox) {
-                        validatedCheckbox.checked = set.validated || false;
-                        if (set.validated) row.classList.add('set-validated');
+                    if (statusBtn) {
+                        // Rétrocompatibilité : ancien champ "validated" -> status "done"
+                        let status = set.status || (set.validated ? 'done' : 'none');
+                        statusBtn.setAttribute('data-status', status);
+                        if (status === 'done') {
+                            statusBtn.textContent = '✅';
+                            row.classList.add('set-validated');
+                        } else if (status === 'failed') {
+                            statusBtn.textContent = '❌';
+                            row.classList.add('set-failed');
+                        } else {
+                            statusBtn.textContent = '⬜';
+                        }
                     }
                 }
             });
@@ -1259,14 +1314,16 @@
                 const repsInput = row.querySelector('[data-field="reps"]');
                 const loadInput = row.querySelector('[data-field="load"]');
                 const rpeInput = row.querySelector('[data-field="rpe"]');
-                const validatedCheckbox = row.querySelector('[data-field="validated"]');
+                const statusBtn = row.querySelector('[data-field="status"]');
                 
+                const status = statusBtn ? statusBtn.getAttribute('data-status') : 'none';
                 const set = {
                     setNumber: index + 1,
                     reps: repsInput ? repsInput.value : '',
                     load: loadInput ? parseFloat(loadInput.value) || null : null,
                     rpe: rpeInput ? parseInt(rpeInput.value) || null : null,
-                    validated: validatedCheckbox ? validatedCheckbox.checked : false
+                    status: status,
+                    validated: status === 'done'   // rétrocompatibilité
                 };
                 
                 setsData.push(set);
@@ -1588,7 +1645,7 @@
             document.getElementById('submit-exercise-db-btn').textContent = 'Enregistrer';
             editingExerciseDbName = null;
             document.getElementById('exercise-db-name').value = '';
-            document.getElementById('exercise-db-type').value = 'Musculation\uD83D\uDCAA';
+            document.getElementById('exercise-db-type').value = 'Musculation💪';
             document.getElementById('exercise-db-type-field').style.display = 'block';
             document.getElementById('exercise-db-muscle').value = '';
             updateMuscleFieldVisibility();
@@ -1597,7 +1654,7 @@
 
         function editExerciseDb(name, type) {
             editingExerciseDbName = name;
-            document.getElementById('exercise-db-modal-title').textContent = 'Modifier l\'exercice';
+            document.getElementById('exercise-db-modal-title').textContent = 'Modifier l'exercice';
             document.getElementById('submit-exercise-db-btn').textContent = 'Enregistrer';
             document.getElementById('exercise-db-name').value = name;
             document.getElementById('exercise-db-type').value = type;
