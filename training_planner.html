@@ -1072,6 +1072,12 @@
         function renderExercisesList(session) {
             const container = document.getElementById('exercises-list');
             
+            // ── Interface dédiée Hyrox ──────────────────────────────────────
+            if (session.type === 'Hyrox🤖') {
+                renderHyroxSession(session, container);
+                return;
+            }
+
             if (!session.details || session.details.length === 0) {
                 container.innerHTML = '<p style="text-align: center; color: var(--text-secondary); padding: 40px;">Aucun exercice enregistré.</p>';
                 return;
@@ -1079,7 +1085,6 @@
 
             const isCardio = session.type === 'Running🏃‍➡️' || session.type === 'Cardio❤️‍🔥';
             const isRunning = session.type === 'Running🏃‍➡️';
-            const isHyrox = session.type === 'Hyrox🤖';
             
             let tableHTML = '<table class="exercise-table"><thead><tr><th>Exercice</th>';
             
@@ -1087,9 +1092,7 @@
                 if (isRunning) tableHTML += '<th>Tours</th>';
                 tableHTML += '<th>Distance</th><th>Temps</th><th>Allure</th>';
             } else {
-                tableHTML += '<th>Séries</th>';
-                tableHTML += isHyrox ? '<th>Reps/Dist</th>' : '<th>Reps</th>';
-                tableHTML += '<th>Charge</th><th>1RM</th>';
+                tableHTML += '<th>Séries</th><th>Reps</th><th>Charge</th><th>1RM</th>';
             }
             
             tableHTML += '<th>Commentaire</th><th></th></tr></thead><tbody>';
@@ -1106,7 +1109,7 @@
                     tableHTML += '<td data-label="Allure">' + (exercise.pace || '-') + '</td>';
                 } else {
                     tableHTML += '<td data-label="Séries">' + (exercise.sets || '-') + '</td>';
-                    tableHTML += '<td data-label="' + (isHyrox ? 'Reps/Dist' : 'Reps') + '">' + (exercise.reps || '-') + '</td>';
+                    tableHTML += '<td data-label="Reps">' + (exercise.reps || '-') + '</td>';
                     tableHTML += '<td data-label="Charge">' + (exercise.load ? exercise.load + ' kg' : '-') + '</td>';
                     
                     let rm = '-';
@@ -1127,7 +1130,7 @@
                     tableHTML += '<table style="width: 100%; font-size: 0.9rem; background: var(--bg-darker); border-radius: 6px; overflow: hidden;">';
                     tableHTML += '<thead><tr style="background: var(--surface-light);">';
                     tableHTML += '<th style="padding: 8px; text-align: center;">Série</th>';
-                    tableHTML += '<th style="padding: 8px; text-align: center;">' + (isHyrox ? 'Reps/Dist' : 'Reps') + '</th>';
+                    tableHTML += '<th style="padding: 8px; text-align: center;">Reps</th>';
                     tableHTML += '<th style="padding: 8px; text-align: center;">Charge</th>';
                     tableHTML += '<th style="padding: 8px; text-align: center;">1RM</th>';
                     tableHTML += '<th style="padding: 8px; text-align: center;">RPE</th>';
@@ -1194,6 +1197,199 @@
 
             tableHTML += '</tbody></table>';
             container.innerHTML = tableHTML;
+        }
+
+        // ── Rendu dédié Hyrox ───────────────────────────────────────────────
+        function renderHyroxSession(session, container) {
+            const isAMRAP = session.name.startsWith('AMRAP');
+            const isEMOM  = session.name.startsWith('EMOM');
+            // For Time = tout le reste
+
+            const meta = session.hyroxMeta || {};
+            const exercises = session.details || [];
+
+            const timeLabel = isAMRAP ? 'Temps maximum (min)' : 'Temps séance (min)';
+
+            // ── Bloc métadonnées ──
+            let html = `
+            <div style="background: var(--bg-darker); border-radius: 10px; padding: 16px; margin-bottom: 16px; border: 1px solid var(--border);">
+                <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end;">
+                    <div style="flex: 1; min-width: 160px;">
+                        <label style="display:block; color: var(--text-secondary); font-size:0.8rem; text-transform:uppercase; font-weight:700; margin-bottom:6px;">${timeLabel}</label>
+                        <input type="number" id="hyrox-duration" min="1" max="120" placeholder="Ex: 20"
+                            style="width:100%; padding:10px; background:var(--surface); border:1px solid var(--border); border-radius:6px; color:var(--text-primary); font-size:1rem;"
+                            value="${meta.duration || ''}">
+                    </div>`;
+
+            if (isAMRAP) {
+                html += `
+                    <div style="flex: 1; min-width: 160px;">
+                        <label style="display:block; color: var(--text-secondary); font-size:0.8rem; text-transform:uppercase; font-weight:700; margin-bottom:6px;">Nombre de tours complétés</label>
+                        <input type="number" id="hyrox-rounds" min="0" placeholder="Ex: 5"
+                            style="width:100%; padding:10px; background:var(--surface); border:1px solid var(--border); border-radius:6px; color:var(--text-primary); font-size:1rem;"
+                            value="${meta.rounds !== undefined ? meta.rounds : ''}">
+                    </div>`;
+            }
+
+            html += `
+                    <button onclick="saveHyroxMeta()" class="btn btn-primary btn-small" style="height:42px; align-self:flex-end;">💾 Enregistrer</button>
+                </div>`;
+
+            // Commentaire de séance
+            const commentVal = (session.comment || '').replace(/"/g, '&quot;');
+            html += `
+                <div style="margin-top:14px;">
+                    <label style="display:block; color: var(--text-secondary); font-size:0.8rem; text-transform:uppercase; font-weight:700; margin-bottom:6px;">Commentaire de séance</label>
+                    <textarea id="hyrox-comment" placeholder="Ressenti général, notes..." rows="2"
+                        style="width:100%; padding:10px; background:var(--surface); border:1px solid var(--border); border-radius:6px; color:var(--text-primary); resize:vertical;">${session.comment || ''}</textarea>
+                </div>
+            </div>`;
+
+            // ── Tableau des exercices ──
+            const minuteCol = isEMOM ? '<th>Minute</th>' : '';
+            html += `<div style="overflow-x:auto;">
+                <table class="exercise-table">
+                    <thead><tr>
+                        ${minuteCol}
+                        <th>Exercice</th>
+                        <th>Reps / Distance</th>
+                        <th>Charge (kg)</th>
+                        <th>Commentaire</th>
+                        <th></th>
+                    </tr></thead>
+                    <tbody id="hyrox-exercise-body">`;
+
+            if (exercises.length === 0) {
+                const colspan = isEMOM ? 6 : 5;
+                html += `<tr><td colspan="${colspan}" style="text-align:center; color:var(--text-secondary); padding:30px;">Aucun exercice — clique sur "+ Ajouter exercice"</td></tr>`;
+            } else {
+                exercises.forEach((ex, i) => {
+                    const minuteCell = isEMOM ? `<td style="font-weight:700; color:var(--accent-hyrox); font-family:'JetBrains Mono',monospace;">min ${i + 1}</td>` : '';
+                    html += `<tr>
+                        ${minuteCell}
+                        <td><strong>${ex.name}</strong></td>
+                        <td>${ex.reps || '-'}</td>
+                        <td>${ex.load ? ex.load + ' kg' : '-'}</td>
+                        <td>${ex.comment || '-'}</td>
+                        <td class="exercise-actions">
+                            <button class="btn-icon" onclick="editHyroxExercise(${i})">✏️</button>
+                            <button class="btn-icon btn-delete" onclick="deleteExercise(${i})">🗑️</button>
+                        </td>
+                    </tr>`;
+                });
+            }
+
+            html += `</tbody></table></div>`;
+
+            // ── Formulaire inline ajout/édition ──
+            html += `
+            <div id="hyrox-exercise-form" style="margin-top:16px; padding:16px; background:var(--bg-darker); border-radius:10px; border:1px solid var(--border); display:none;">
+                <h5 style="margin-bottom:14px; color:var(--text-secondary); font-size:0.85rem; text-transform:uppercase;" id="hyrox-form-title">Ajouter un exercice${isEMOM ? ' — Minute <span id="hyrox-minute-label">' + (exercises.length + 1) + '</span>' : ''}</h5>
+                <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end;">
+                    <div style="flex:2; min-width:140px;">
+                        <label style="display:block; color:var(--text-secondary); font-size:0.8rem; margin-bottom:4px;">Exercice</label>
+                        <select id="hyrox-ex-name" style="width:100%; padding:10px; background:var(--surface); border:1px solid var(--border); border-radius:6px; color:var(--text-primary);">
+                            ${hyroxExercises.sort().map(n => `<option value="${n}">${n}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div style="flex:1; min-width:110px;">
+                        <label style="display:block; color:var(--text-secondary); font-size:0.8rem; margin-bottom:4px;">Reps / Distance</label>
+                        <input type="text" id="hyrox-ex-reps" placeholder="Ex: 20 ou 100m"
+                            style="width:100%; padding:10px; background:var(--surface); border:1px solid var(--border); border-radius:6px; color:var(--text-primary);">
+                    </div>
+                    <div style="flex:1; min-width:100px;">
+                        <label style="display:block; color:var(--text-secondary); font-size:0.8rem; margin-bottom:4px;">Charge (kg)</label>
+                        <input type="number" id="hyrox-ex-load" placeholder="Ex: 20" step="0.5" min="0"
+                            style="width:100%; padding:10px; background:var(--surface); border:1px solid var(--border); border-radius:6px; color:var(--text-primary);">
+                    </div>
+                    <div style="flex:2; min-width:140px;">
+                        <label style="display:block; color:var(--text-secondary); font-size:0.8rem; margin-bottom:4px;">Commentaire</label>
+                        <input type="text" id="hyrox-ex-comment" placeholder="Optionnel"
+                            style="width:100%; padding:10px; background:var(--surface); border:1px solid var(--border); border-radius:6px; color:var(--text-primary);">
+                    </div>
+                    <div style="display:flex; gap:8px; align-self:flex-end;">
+                        <button onclick="saveHyroxExercise()" class="btn btn-primary btn-small">✅ Valider</button>
+                        <button onclick="cancelHyroxExercise()" class="btn btn-small">Annuler</button>
+                    </div>
+                </div>
+                <input type="hidden" id="hyrox-editing-index" value="">
+            </div>`;
+
+            container.innerHTML = html;
+        }
+
+        function saveHyroxMeta() {
+            const session = sessions.find(s => s.id === currentSessionId);
+            if (!session) return;
+            if (!session.hyroxMeta) session.hyroxMeta = {};
+            const dur = document.getElementById('hyrox-duration').value;
+            if (dur) session.hyroxMeta.duration = parseFloat(dur);
+            const roundsEl = document.getElementById('hyrox-rounds');
+            if (roundsEl) session.hyroxMeta.rounds = parseInt(roundsEl.value) || 0;
+            const commentEl = document.getElementById('hyrox-comment');
+            if (commentEl) session.comment = commentEl.value;
+            saveData();
+            const btn = event.target;
+            btn.textContent = '✅ Enregistré !';
+            setTimeout(() => btn.textContent = '💾 Enregistrer', 1500);
+        }
+
+        function showHyroxExerciseForm() {
+            const session = sessions.find(s => s.id === currentSessionId);
+            document.getElementById('hyrox-exercise-form').style.display = 'block';
+            document.getElementById('hyrox-editing-index').value = '';
+            document.getElementById('hyrox-ex-reps').value = '';
+            document.getElementById('hyrox-ex-load').value = '';
+            document.getElementById('hyrox-ex-comment').value = '';
+            const sel = document.getElementById('hyrox-ex-name');
+            if (sel) sel.selectedIndex = 0;
+            // Mettre à jour le numéro de minute pour EMOM
+            const minLabel = document.getElementById('hyrox-minute-label');
+            if (minLabel && session) minLabel.textContent = (session.details ? session.details.length + 1 : 1);
+        }
+
+        function editHyroxExercise(index) {
+            const session = sessions.find(s => s.id === currentSessionId);
+            if (!session) return;
+            const ex = session.details[index];
+            document.getElementById('hyrox-exercise-form').style.display = 'block';
+            document.getElementById('hyrox-editing-index').value = index;
+            document.getElementById('hyrox-ex-name').value = ex.name;
+            document.getElementById('hyrox-ex-reps').value = ex.reps || '';
+            document.getElementById('hyrox-ex-load').value = ex.load || '';
+            document.getElementById('hyrox-ex-comment').value = ex.comment || '';
+            // Mettre à jour le numéro de minute pour EMOM
+            const minLabel = document.getElementById('hyrox-minute-label');
+            if (minLabel) minLabel.textContent = index + 1;
+        }
+
+        function saveHyroxExercise() {
+            const session = sessions.find(s => s.id === currentSessionId);
+            if (!session) return;
+            if (!session.details) session.details = [];
+
+            const name    = document.getElementById('hyrox-ex-name').value;
+            const reps    = document.getElementById('hyrox-ex-reps').value.trim();
+            const load    = parseFloat(document.getElementById('hyrox-ex-load').value) || null;
+            const comment = document.getElementById('hyrox-ex-comment').value.trim();
+            const idx     = document.getElementById('hyrox-editing-index').value;
+
+            if (!name) { alert('Sélectionne un exercice.'); return; }
+
+            const exercise = { name, reps, load, comment };
+
+            if (idx !== '') {
+                session.details[parseInt(idx)] = exercise;
+            } else {
+                session.details.push(exercise);
+            }
+
+            saveData();
+            renderHyroxSession(session, document.getElementById('exercises-list'));
+        }
+
+        function cancelHyroxExercise() {
+            document.getElementById('hyrox-exercise-form').style.display = 'none';
         }
 
         function calculateBest1RM(exercise) {
@@ -2565,7 +2761,14 @@
         document.getElementById('cancel-btn').addEventListener('click', closeModal);
         document.getElementById('close-details-modal').addEventListener('click', closeDetailsModal);
         document.getElementById('close-details-btn').addEventListener('click', closeDetailsModal);
-        document.getElementById('add-exercise-btn').addEventListener('click', openExerciseModal);
+        document.getElementById('add-exercise-btn').addEventListener('click', () => {
+            const session = sessions.find(s => s.id === currentSessionId);
+            if (session && session.type === 'Hyrox🤖') {
+                showHyroxExerciseForm();
+            } else {
+                openExerciseModal();
+            }
+        });
         document.getElementById('close-exercise-modal').addEventListener('click', closeExerciseModal);
         document.getElementById('cancel-exercise-btn').addEventListener('click', closeExerciseModal);
         document.getElementById('edit-session-info-btn').addEventListener('click', () => { 
