@@ -763,28 +763,6 @@
             }
         }
 
-            if (storedExercises) {
-                exerciseDatabase = JSON.parse(storedExercises);
-            } else {
-                exerciseDatabase = {
-                    'Développé couché': 'Pecs',
-                    'Développé incliné': 'Pecs',
-                    'Tractions': 'Dos',
-                    'Rowing': 'Dos',
-                    'Curl biceps': 'Biceps',
-                    'Développé militaire': 'Epaules',
-                    'Squat': 'Jambes',
-                    'Leg press': 'Jambes'
-                };
-            }
-
-            if (storedHyrox) {
-                hyroxExercises = JSON.parse(storedHyrox);
-            } else {
-                hyroxExercises = ['SkiErg', 'Sled Push', 'Sled Pull', 'Burpees', 'Rowing', 'Farmers Carry', 'Sandbag Lunges', 'Wall Balls'];
-            }
-        }
-
         function saveData() {
             localStorage.setItem('trainingSessions', JSON.stringify(sessions));
             localStorage.setItem('exerciseDatabase', JSON.stringify(exerciseDatabase));
