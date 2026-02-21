@@ -1503,6 +1503,18 @@
                     if (sourceSession && sourceSession.details) {
                         // Copie profonde des exercices
                         copiedDetails = JSON.parse(JSON.stringify(sourceSession.details));
+                        // Pour les séances de musculation : vider le RPE et remettre le statut en attente
+                        if (type === 'Musculation💪') {
+                            copiedDetails.forEach(exercise => {
+                                if (exercise.sets) {
+                                    exercise.sets.forEach(set => {
+                                        set.rpe = '';
+                                        set.status = 'none';
+                                        delete set.validated;
+                                    });
+                                }
+                            });
+                        }
                     }
                 }
                 
