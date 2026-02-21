@@ -433,7 +433,10 @@
         <div id="exercises-tab" class="tab-content">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                 <h2>Gestion des exercices</h2>
-                <button class="btn btn-primary" id="add-exercise-db-btn">+ Ajouter un exercice</button>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn" id="recover-exercises-btn" title="Importer les exercices manquants depuis vos séances existantes">🔄 Récupérer depuis les séances</button>
+                    <button class="btn btn-primary" id="add-exercise-db-btn">+ Ajouter un exercice</button>
+                </div>
             </div>
             <div class="filter-group">
                 <select id="filter-session-type">
@@ -2537,6 +2540,35 @@
         });
         document.getElementById('delete-session-btn').addEventListener('click', () => deleteSession(currentSessionId));
         document.getElementById('add-exercise-db-btn').addEventListener('click', openExerciseDbModal);
+
+        document.getElementById('recover-exercises-btn').addEventListener('click', function() {
+            let recovered = 0;
+            sessions.forEach(session => {
+                if (session.type === 'Musculation💪' && session.details) {
+                    session.details.forEach(exercise => {
+                        if (exercise.name && !exerciseDatabase[exercise.name]) {
+                            exerciseDatabase[exercise.name] = 'Autre';
+                            recovered++;
+                        }
+                    });
+                } else if (session.type === 'Hyrox🤖' && session.details) {
+                    session.details.forEach(exercise => {
+                        if (exercise.name && !hyroxExercises.includes(exercise.name)) {
+                            hyroxExercises.push(exercise.name);
+                            recovered++;
+                        }
+                    });
+                }
+            });
+
+            if (recovered > 0) {
+                saveData();
+                renderExerciseList();
+                alert('✅ ' + recovered + ' exercice(s) récupéré(s) depuis tes séances !\n\nIls ont été classés dans "Autre" pour la musculation. Tu peux maintenant modifier chacun pour assigner le bon muscle.');
+            } else {
+                alert('✅ Aucun exercice manquant — ta base est déjà complète !');
+            }
+        });
         document.getElementById('generate-sets-table').addEventListener('click', generateSetsTable);
         document.getElementById('copy-from-session').addEventListener('change', (e) => showCopyPreview(e.target.value));
         document.getElementById('export-excel-btn').addEventListener('click', exportToExcel);
