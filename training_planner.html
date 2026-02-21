@@ -1,0 +1,2678 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Training Planner Pro</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luxon@3.4.4/build/global/luxon.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.3.1/dist/chartjs-adapter-luxon.umd.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700;900&family=JetBrains+Mono:wght@400;600&display=swap');
+        :root {
+            --bg-dark: #0a0e14; --bg-darker: #050810; --surface: #141b24; --surface-light: #1a2332;
+            --border: #2a3441; --text-primary: #e6edf3; --text-secondary: #8b949e;
+            --accent-running: #3b82f6; --accent-musculation: #ef4444; --accent-hyrox: #f59e0b; --accent-cardio: #10b981;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Archivo', sans-serif; background: var(--bg-dark); color: var(--text-primary); line-height: 1.6; }
+        body::before { content: ''; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.05) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 80%, rgba(239, 68, 68, 0.05) 0%, transparent 50%);
+            pointer-events: none; z-index: -1; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        header { background: linear-gradient(135deg, var(--surface) 0%, var(--surface-light) 100%);
+            border-bottom: 2px solid var(--border); padding: 30px 0; margin-bottom: 40px; }
+        h1 { font-weight: 900; font-size: 3rem; letter-spacing: -0.05em;
+            background: linear-gradient(135deg, var(--accent-running), var(--accent-musculation));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 10px; }
+        .subtitle { color: var(--text-secondary); font-size: 1.1rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        .nav-tabs { display: flex; gap: 10px; margin-bottom: 30px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+        .nav-tab { padding: 12px 20px; background: transparent; border: none; color: var(--text-secondary);
+            cursor: pointer; font-family: 'Archivo', sans-serif; font-weight: 600; font-size: 0.95rem;
+            transition: all 0.3s; position: relative; text-transform: uppercase; }
+        .nav-tab::after { content: ''; position: absolute; bottom: -1px; left: 0; right: 0; height: 2px;
+            background: var(--accent-running); transform: scaleX(0); transition: transform 0.3s; }
+        .nav-tab:hover { color: var(--text-primary); }
+        .nav-tab.active { color: var(--text-primary); }
+        .nav-tab.active::after { transform: scaleX(1); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.5s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .btn { padding: 10px 20px; background: var(--surface-light); border: 1px solid var(--border);
+            border-radius: 8px; color: var(--text-primary); cursor: pointer; font-family: 'Archivo', sans-serif;
+            font-weight: 600; font-size: 0.95rem; transition: all 0.3s; text-transform: uppercase; }
+        .btn:hover { background: var(--accent-running); border-color: var(--accent-running); transform: translateY(-2px); }
+        .btn-primary { background: linear-gradient(135deg, var(--accent-running), #2563eb); border: none; }
+        .btn-danger { background: var(--accent-musculation); border: none; }
+        .btn-small { padding: 6px 12px; font-size: 0.85rem; }
+        .calendar { background: var(--surface); border-radius: 12px; padding: 20px; border: 1px solid var(--border); position: relative; }
+        .calendar::after { 
+            content: ''; 
+            position: absolute; 
+            right: 0; 
+            top: 0; 
+            bottom: 0; 
+            width: 30px; 
+            background: linear-gradient(to right, transparent, var(--surface)); 
+            pointer-events: none; 
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .calendar-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;
+            padding: 20px; background: var(--surface); border-radius: 12px; border: 1px solid var(--border); }
+        .controls-buttons { display: flex; gap: 10px; }
+        .calendar-header { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; margin-bottom: 15px; }
+        .calendar-header-day { text-align: center; font-weight: 700; font-size: 0.85rem;
+            color: var(--text-secondary); padding: 10px; text-transform: uppercase; }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; }
+        .calendar-day { background: var(--bg-darker); border: 1px solid var(--border); border-radius: 8px;
+            padding: 12px 8px; min-height: 120px; cursor: pointer; transition: all 0.3s; }
+        .calendar-day:hover { border-color: var(--accent-running); transform: translateY(-2px); }
+        .calendar-day.other-month { opacity: 0.3; }
+        .calendar-day.today { border-color: var(--accent-running); box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3); }
+        .day-number { font-weight: 700; font-size: 1.1rem; margin-bottom: 8px; font-family: 'JetBrains Mono', monospace; }
+        .day-sessions { display: flex; flex-direction: column; gap: 4px; }
+        .session-badge { padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;
+            text-align: center; cursor: pointer; border-left: 3px solid; background: rgba(255, 255, 255, 0.05);
+            transition: all 0.2s; }
+        .session-badge:hover { transform: translateX(4px); background: rgba(255, 255, 255, 0.1); }
+        .session-badge.running { border-left-color: var(--accent-running); color: var(--accent-running); }
+        .session-badge.musculation { border-left-color: var(--accent-musculation); color: var(--accent-musculation); }
+        .session-badge.hyrox { border-left-color: var(--accent-hyrox); color: var(--accent-hyrox); }
+        .session-badge.cardio { border-left-color: var(--accent-cardio); color: var(--accent-cardio); }
+        .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(4px); z-index: 1000;
+            align-items: center; justify-content: center; }
+        .modal.active { display: flex; }
+        .modal-content { background: var(--surface); border-radius: 16px; padding: 40px; max-width: 600px;
+            width: 90%; max-height: 90vh; overflow-y: auto; border: 1px solid var(--border);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        .modal-title { font-size: 2rem; font-weight: 700; }
+        .close-modal { background: none; border: none; color: var(--text-secondary); font-size: 2rem;
+            cursor: pointer; width: 40px; height: 40px; display: flex; align-items: center;
+            justify-content: center; border-radius: 8px; transition: all 0.3s; }
+        .close-modal:hover { background: var(--surface-light); color: var(--text-primary); transform: rotate(90deg); }
+        .form-group { margin-bottom: 25px; }
+        .form-group label { display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-secondary);
+            text-transform: uppercase; font-size: 0.85rem; }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%; padding: 12px 16px; background: var(--bg-darker); border: 1px solid var(--border);
+            border-radius: 8px; color: var(--text-primary); font-family: 'Archivo', sans-serif;
+            font-size: 1rem; transition: all 0.3s; }
+        .form-group textarea { min-height: 80px; resize: vertical; }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            outline: none; border-color: var(--accent-running); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3); }
+        .modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 30px;
+            padding-top: 20px; border-top: 1px solid var(--border); }
+        .legend { display: flex; gap: 20px; flex-wrap: wrap; padding: 20px; background: var(--surface);
+            border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px; }
+        .legend-item { display: flex; align-items: center; gap: 10px; }
+        .legend-color { width: 30px; height: 20px; border-radius: 4px; border-left: 3px solid; }
+        .legend-color.running { border-left-color: var(--accent-running); }
+        .legend-color.musculation { border-left-color: var(--accent-musculation); }
+        .legend-color.hyrox { border-left-color: var(--accent-hyrox); }
+        .legend-color.cardio { border-left-color: var(--accent-cardio); }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+            padding: 25px; transition: all 0.3s; }
+        .stat-card:hover { transform: translateY(-4px); }
+        .stat-label { color: var(--text-secondary); font-size: 0.85rem; font-weight: 600;
+            text-transform: uppercase; margin-bottom: 10px; }
+        .stat-value { font-size: 2.5rem; font-weight: 900; font-family: 'JetBrains Mono', monospace; }
+        .stat-value.running { color: var(--accent-running); }
+        .stat-value.musculation { color: var(--accent-musculation); }
+        .stat-value.hyrox { color: var(--accent-hyrox); }
+        .stat-value.cardio { color: var(--accent-cardio); }
+        .session-list, .exercise-list { background: var(--surface); border: 1px solid var(--border);
+            border-radius: 12px; padding: 20px; }
+        .session-item, .exercise-item { padding: 15px; background: var(--bg-darker); border-left: 3px solid;
+            border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between;
+            align-items: center; transition: all 0.3s; }
+        .session-item:hover, .exercise-item:hover { transform: translateX(4px); background: var(--surface-light); }
+        .btn-icon { padding: 8px 12px; background: transparent; border: 1px solid var(--border);
+            border-radius: 6px; color: var(--text-secondary); cursor: pointer; transition: all 0.3s; font-size: 0.9rem; }
+        .btn-icon:hover { background: var(--surface-light); color: var(--text-primary); }
+        .btn-delete:hover { background: var(--accent-musculation); border-color: var(--accent-musculation); color: white; }
+        .exercise-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        .exercise-table th { background: var(--bg-darker); padding: 12px; text-align: left; font-weight: 600;
+            color: var(--text-secondary); text-transform: uppercase; font-size: 0.85rem; border-bottom: 2px solid var(--border); }
+        .exercise-table td { padding: 12px; border-bottom: 1px solid var(--border); }
+        .exercise-table tr:hover { background: var(--surface-light); }
+        .rm-badge { background: var(--accent-running); color: white; padding: 4px 8px; border-radius: 4px;
+            font-size: 0.85rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+        .session-comment-box { background: var(--bg-darker); padding: 15px; border-radius: 8px;
+            margin-bottom: 20px; border-left: 3px solid var(--accent-running); }
+        .progression-controls { background: var(--surface); border: 1px solid var(--border);
+            border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+        .exercise-selector { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px; margin-top: 15px; }
+        .exercise-checkbox { display: flex; align-items: center; gap: 10px; padding: 10px;
+            background: var(--bg-darker); border-radius: 8px; cursor: pointer; }
+        .exercise-checkbox:hover { background: var(--surface-light); }
+        .exercise-checkbox input[type="checkbox"] { width: 20px; height: 20px; cursor: pointer; }
+        .chart-container { background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+            padding: 20px; margin-top: 20px; min-height: 400px; }
+        canvas { max-width: 100%; }
+        .filter-group { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
+        .filter-group select { padding: 10px 16px; background: var(--bg-darker); border: 1px solid var(--border);
+            border-radius: 8px; color: var(--text-primary); font-family: 'Archivo', sans-serif; cursor: pointer; }
+        
+        /* Tableau de séries */
+        .set-input { 
+            width: 100%; 
+            padding: 8px; 
+            background: var(--surface); 
+            border: 1px solid var(--border); 
+            border-radius: 4px; 
+            color: var(--text-primary); 
+            text-align: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.95rem;
+        }
+        .set-input:focus {
+            outline: none;
+            border-color: var(--accent-running);
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+        }
+        .set-status-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            border: 2px solid var(--border);
+            background: var(--bg-darker);
+            cursor: pointer;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+            transition: all 0.2s;
+            user-select: none;
+            line-height: 1;
+        }
+        .set-status-btn:hover { transform: scale(1.15); }
+        .set-status-btn[data-status="none"]   { border-color: var(--border); background: var(--bg-darker); }
+        .set-status-btn[data-status="done"]   { border-color: var(--accent-cardio); background: rgba(16,185,129,0.15); }
+        .set-status-btn[data-status="failed"] { border-color: var(--accent-musculation); background: rgba(239,68,68,0.15); }
+        #sets-table td {
+            padding: 8px;
+            border-bottom: 1px solid var(--border);
+            text-align: center;
+        }
+        #sets-table tr:hover {
+            background: var(--surface-light);
+        }
+        .set-number {
+            font-weight: 700;
+            color: var(--accent-running);
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .set-validated {
+            background: rgba(16, 185, 129, 0.08) !important;
+        }
+        .set-failed {
+            background: rgba(239, 68, 68, 0.08) !important;
+        }
+        
+        /* Responsive - Mobile et Tablette */
+        @media (max-width: 1024px) {
+            .container { padding: 15px; }
+            .modal-content { max-width: 90%; padding: 25px; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .exercise-selector { grid-template-columns: repeat(2, 1fr); }
+            h2 { font-size: 1.5rem; }
+            .calendar-day { min-height: 85px; padding: 8px 6px; }
+        }
+        
+        @media (max-width: 768px) {
+            h1 { font-size: 2rem; }
+            .subtitle { font-size: 0.9rem; }
+            .container { padding: 8px; }
+            header { padding: 15px 0; margin-bottom: 15px; }
+            
+            .nav-tabs { gap: 5px; margin-bottom: 15px; }
+            .nav-tab { padding: 10px 15px; font-size: 0.85rem; }
+            
+            .calendar { padding: 10px; overflow-x: auto; }
+            .calendar::after { opacity: 1; }
+            .calendar-grid { gap: 6px; min-width: 100%; }
+            .calendar-header { min-width: 100%; }
+            .calendar-day { min-height: 80px; padding: 6px 4px; min-width: 90px; }
+            .calendar-controls { padding: 15px; margin-bottom: 15px; }
+            .day-number { font-size: 0.9rem; margin-bottom: 4px; }
+            .session-badge { font-size: 0.65rem; padding: 3px 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+            .day-sessions { gap: 3px; }
+            
+            .modal-content { padding: 20px; max-width: 95%; }
+            .modal-title { font-size: 1.5rem; }
+            .form-group label { font-size: 0.8rem; }
+            .form-group input, .form-group select, .form-group textarea { 
+                padding: 10px 12px; 
+                font-size: 0.95rem; 
+            }
+            
+            .stats-grid { grid-template-columns: 1fr; gap: 15px; }
+            .stat-card { padding: 20px; }
+            .stat-value { font-size: 2rem; }
+            
+            .controls-buttons { flex-direction: column; width: 100%; }
+            .controls-buttons .btn { width: 100%; }
+            .calendar-controls { flex-direction: column; gap: 15px; align-items: stretch; }
+            .calendar-controls h2 { font-size: 1.3rem; text-align: center; }
+            
+            .exercise-table { font-size: 0.85rem; }
+            .exercise-table th, .exercise-table td { padding: 8px 6px; }
+            .exercise-table th { font-size: 0.75rem; }
+            
+            .btn { padding: 10px 16px; font-size: 0.9rem; }
+            .btn-small { padding: 6px 10px; font-size: 0.8rem; }
+            .btn-icon { padding: 6px 10px; font-size: 0.85rem; }
+            
+            .session-item, .exercise-item { 
+                flex-direction: column; 
+                align-items: flex-start; 
+                gap: 10px; 
+            }
+            .session-actions, .exercise-actions { 
+                width: 100%; 
+                justify-content: flex-start; 
+            }
+            
+            .exercise-selector { grid-template-columns: 1fr; }
+            .chart-container { padding: 15px; min-height: 300px; }
+            
+            .filter-group { flex-direction: column; }
+            .filter-group select { width: 100%; }
+            
+            .legend { gap: 10px; padding: 15px; }
+            .legend-item { font-size: 0.9rem; }
+            
+            #exercises-tab h2 { font-size: 1.3rem; }
+            #exercises-tab > div:first-child { 
+                flex-direction: column; 
+                align-items: stretch; 
+                gap: 10px; 
+            }
+            #exercises-tab > div:first-child .btn { width: 100%; }
+        }
+        
+        @media (max-width: 480px) {
+            h1 { font-size: 1.6rem; }
+            .container { padding: 5px; }
+            header { padding: 12px 0; margin-bottom: 10px; }
+            
+            .calendar { padding: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+            .calendar::after { opacity: 1; }
+            .calendar-grid { gap: 5px; min-width: 650px; }
+            .calendar-header { gap: 5px; min-width: 650px; }
+            .calendar-controls { padding: 12px; margin-bottom: 10px; }
+            .calendar-header-day { font-size: 0.75rem; padding: 5px 2px; }
+            .calendar-day { min-height: 85px; padding: 6px 4px; min-width: 85px; }
+            .day-number { font-size: 0.85rem; margin-bottom: 4px; }
+            .session-badge { font-size: 0.65rem; padding: 3px 5px; line-height: 1.3; white-space: nowrap; }
+            .day-sessions { gap: 3px; }
+            
+            .legend { gap: 8px; padding: 12px; margin-bottom: 10px; }
+            .legend-item { font-size: 0.85rem; }
+            
+            .modal-content { padding: 15px; }
+            .modal-title { font-size: 1.3rem; }
+            .close-modal { width: 35px; height: 35px; font-size: 1.5rem; }
+            
+            .stat-value { font-size: 1.8rem; }
+            .calendar-controls h2 { font-size: 1.1rem; }
+            
+            .exercise-table { overflow-x: auto; display: block; }
+            .exercise-table thead { display: none; }
+            .exercise-table tr { 
+                display: flex; 
+                flex-direction: column; 
+                border: 1px solid var(--border); 
+                margin-bottom: 10px; 
+                padding: 10px; 
+                border-radius: 8px; 
+            }
+            .exercise-table td { 
+                border: none; 
+                padding: 5px 0; 
+                display: flex; 
+                justify-content: space-between; 
+            }
+            .exercise-table td::before { 
+                content: attr(data-label); 
+                font-weight: 600; 
+                color: var(--text-secondary); 
+                text-transform: uppercase; 
+                font-size: 0.75rem; 
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>TRAINING PLANNER <span style="font-size: 0.5em; color: var(--text-secondary);">v1.0</span></h1>
+            <p class="subtitle">Planification d'entraînement multisport</p>
+            <div style="margin-top: 15px;">
+                <button id="gdrive-connect-btn" class="btn btn-primary">
+                    ☁️ Se connecter à Google Drive
+                </button>
+                <div id="gdrive-controls" style="display: none; margin-top: 10px; gap: 10px;">
+                    <button id="gdrive-load-btn" class="btn btn-small" style="background: var(--accent-running);">
+                        ⬇️ Charger depuis Drive
+                    </button>
+                    <button id="gdrive-save-btn" class="btn btn-small" style="background: var(--accent-musculation);">
+                        ⬆️ Sauvegarder sur Drive
+                    </button>
+                    <button id="gdrive-disconnect-btn" class="btn btn-small" style="background: #6b7280;">
+                        🔌 Déconnecter
+                    </button>
+                </div>
+                <div id="gdrive-status" style="display: none; margin-top: 10px; padding: 10px; background: var(--surface); border-radius: 8px; border-left: 3px solid var(--accent-running);">
+                    <span id="gdrive-status-text">☁️ Synchronisé</span>
+                </div>
+            </div>
+        </div>
+    </header>
+    <div class="container">
+        <div class="nav-tabs">
+            <button class="nav-tab active" data-tab="calendar">📅 Calendrier</button>
+            <button class="nav-tab" data-tab="stats">📊 Statistiques</button>
+            <button class="nav-tab" data-tab="sessions">📝 Séances</button>
+            <button class="nav-tab" data-tab="exercises">💪 Exercices</button>
+            <button class="nav-tab" data-tab="progression">📈 Progression</button>
+        </div>
+        <div id="calendar-tab" class="tab-content active">
+            <div class="legend">
+                <div class="legend-item"><div class="legend-color running"></div><span>Running</span></div>
+                <div class="legend-item"><div class="legend-color musculation"></div><span>Musculation</span></div>
+                <div class="legend-item"><div class="legend-color hyrox"></div><span>Hyrox</span></div>
+                <div class="legend-item"><div class="legend-color cardio"></div><span>Cardio</span></div>
+            </div>
+            <div class="calendar-controls">
+                <h2 id="current-month">Février 2026</h2>
+                <div class="controls-buttons">
+                    <button class="btn" id="prev-month">← Précédent</button>
+                    <button class="btn" id="today-btn">Aujourd'hui</button>
+                    <button class="btn" id="next-month">Suivant →</button>
+                    <button class="btn btn-primary" id="add-session-btn">+ Ajouter séance</button>
+                </div>
+            </div>
+            <div class="calendar">
+                <div class="calendar-header">
+                    <div class="calendar-header-day">Lun</div>
+                    <div class="calendar-header-day">Mar</div>
+                    <div class="calendar-header-day">Mer</div>
+                    <div class="calendar-header-day">Jeu</div>
+                    <div class="calendar-header-day">Ven</div>
+                    <div class="calendar-header-day">Sam</div>
+                    <div class="calendar-header-day">Dim</div>
+                </div>
+                <div class="calendar-grid" id="calendar-grid"></div>
+            </div>
+        </div>
+        <div id="stats-tab" class="tab-content">
+            <div class="stats-grid">
+                <div class="stat-card"><div class="stat-label">Séances ce mois</div><div class="stat-value running" id="stat-total-sessions">0</div></div>
+                <div class="stat-card"><div class="stat-label">Running</div><div class="stat-value running" id="stat-running">0</div></div>
+                <div class="stat-card"><div class="stat-label">Musculation</div><div class="stat-value musculation" id="stat-musculation">0</div></div>
+                <div class="stat-card"><div class="stat-label">Hyrox</div><div class="stat-value hyrox" id="stat-hyrox">0</div></div>
+                <div class="stat-card"><div class="stat-label">Cardio</div><div class="stat-value cardio" id="stat-cardio">0</div></div>
+                <div class="stat-card"><div class="stat-label">Semaine en cours</div><div class="stat-value" style="color: var(--text-primary);" id="stat-week">0</div></div>
+            </div>
+        </div>
+        <div id="sessions-tab" class="tab-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2>Liste des séances</h2>
+                <button class="btn btn-primary" id="export-excel-btn">📊 Exporter en Excel</button>
+            </div>
+            <div class="session-list" id="session-list"></div>
+        </div>
+        <div id="exercises-tab" class="tab-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2>Gestion des exercices</h2>
+                <button class="btn btn-primary" id="add-exercise-db-btn">+ Ajouter un exercice</button>
+            </div>
+            <div class="filter-group">
+                <select id="filter-session-type">
+                    <option value="all">Tous les types</option>
+                    <option value="Musculation💪">Musculation💪</option>
+                    <option value="Hyrox🤖">Hyrox🤖</option>
+                </select>
+                <select id="filter-muscle-group" style="display: none;">
+                    <option value="all">Tous les muscles</option>
+                </select>
+            </div>
+            <div class="exercise-list" id="exercise-list"></div>
+        </div>
+        <div id="progression-tab" class="tab-content">
+            <div class="progression-controls">
+                <h3 style="margin-bottom: 15px;">Sélectionnez les exercices à suivre</h3>
+                <div class="exercise-selector" id="exercise-selector"></div>
+            </div>
+            <div class="chart-container">
+                <canvas id="progression-chart" width="400" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+    <div id="session-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modal-title">Nouvelle séance</h3>
+                <button class="close-modal" id="close-modal">×</button>
+            </div>
+            <form id="session-form">
+                <div class="form-group">
+                    <label for="session-date">Date</label>
+                    <input type="date" id="session-date" required>
+                </div>
+                <div class="form-group">
+                    <label for="session-type">Type</label>
+                    <select id="session-type" required>
+                        <option value="Running🏃‍➡️">Running🏃‍➡️</option>
+                        <option value="Musculation💪">Musculation💪</option>
+                        <option value="Hyrox🤖">Hyrox🤖</option>
+                        <option value="Cardio❤️‍🔥">Cardio❤️‍🔥</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="session-name">Nom de la séance</label>
+                    <select id="session-name" required></select>
+                </div>
+                
+                <div class="form-group" id="copy-session-group" style="display: none;">
+                    <label>📋 Copier depuis une séance existante (optionnel)</label>
+                    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 10px;">
+                        Sélectionne une séance pour copier ses exercices
+                    </p>
+                    <select id="copy-from-session" style="margin-bottom: 10px;">
+                        <option value="">-- Aucune copie --</option>
+                    </select>
+                    <div id="copy-preview" style="display: none; padding: 10px; background: var(--bg-darker); border-radius: 6px; border-left: 3px solid var(--accent-running); font-size: 0.85rem;">
+                        <strong>Aperçu :</strong>
+                        <div id="copy-preview-content" style="margin-top: 8px;"></div>
+                    </div>
+                </div>
+                
+                <div class="form-group" id="cycle-group" style="display: none;">
+                    <label for="session-cycle">Cycle</label>
+                    <select id="session-cycle">
+                        <option value="">Aucun</option>
+                        <option value="Force">Force</option>
+                        <option value="Hypertrophie">Hypertrophie</option>
+                        <option value="Endurance">Endurance</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="session-comment">Commentaire de séance (optionnel)</label>
+                    <textarea id="session-comment" placeholder="Ressenti général, notes..."></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn" id="cancel-btn">Annuler</button>
+                    <button type="submit" class="btn btn-primary">Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div id="details-modal" class="modal">
+        <div class="modal-content" style="max-width: 1000px;">
+            <div class="modal-header">
+                <h3 class="modal-title">Détails de la séance</h3>
+                <button class="close-modal" id="close-details-modal">×</button>
+            </div>
+            <div id="details-content">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding: 15px; background: var(--bg-darker); border-radius: 8px;">
+                    <div>
+                        <h4 id="details-session-name" style="margin-bottom: 5px; font-size: 1.3rem;"></h4>
+                        <p id="details-session-info" style="color: var(--text-secondary); margin: 0;"></p>
+                    </div>
+                    <button class="btn btn-primary" id="add-exercise-btn">+ Ajouter exercice</button>
+                </div>
+                <div id="session-comment-display"></div>
+                <div id="exercises-list"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn" id="close-details-btn">Fermer</button>
+                <button type="button" class="btn btn-primary" id="edit-session-info-btn">Modifier la séance</button>
+                <button type="button" class="btn btn-danger" id="delete-session-btn">Supprimer la séance</button>
+            </div>
+        </div>
+    </div>
+    <div id="exercise-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title" id="exercise-modal-title">Ajouter un exercice</h3>
+                <button class="close-modal" id="close-exercise-modal">×</button>
+            </div>
+            <form id="exercise-form">
+                <div class="form-group">
+                    <label for="exercise-name">Exercice</label>
+                    <select id="exercise-name-select" style="display: none;"></select>
+                    <input type="text" id="exercise-name-input" placeholder="Ex: 1km, Sprint..." style="display: none;">
+                    
+                    <div id="add-new-exercise-inline" style="display: none; margin-top: 10px; padding: 15px; background: var(--bg-darker); border-radius: 8px; border: 1px solid var(--border);">
+                        <div style="display: flex; flex-direction: column; gap: 12px;">
+                            <input type="text" id="new-exercise-name-inline" placeholder="Nom du nouvel exercice" style="width: 100%; padding: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary);">
+                            <select id="new-exercise-muscle-inline" style="width: 100%; padding: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary); display: none;">
+                                <option value="">Sélectionnez le muscle principal</option>
+                                <option value="Abdos">Abdos</option>
+                                <option value="Abducteurs">Abducteurs</option>
+                                <option value="Adducteurs">Adducteurs</option>
+                                <option value="Biceps">Biceps</option>
+                                <option value="Dos">Dos</option>
+                                <option value="Epaules">Épaules</option>
+                                <option value="Fessiers">Fessiers</option>
+                                <option value="Ischio">Ischio-jambiers</option>
+                                <option value="Jambes">Jambes (global)</option>
+                                <option value="Mollets">Mollets</option>
+                                <option value="Pecs">Pecs</option>
+                                <option value="Quadriceps">Quadriceps</option>
+                                <option value="Triceps">Triceps</option>
+                            </select>
+                            <div style="display: flex; gap: 10px;">
+                                <button type="button" class="btn btn-small btn-primary" id="save-new-exercise-inline" style="flex: 1;">Ajouter</button>
+                                <button type="button" class="btn btn-small" id="cancel-new-exercise-inline" style="flex: 1;">Annuler</button>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-small" id="toggle-new-exercise-inline" style="margin-top: 10px; display: none;">+ Nouvel exercice</button>
+                </div>
+                <div id="strength-fields">
+                    <div class="form-group">
+                        <label for="exercise-sets">Nombre de séries</label>
+                        <input type="number" id="exercise-sets" placeholder="Ex: 4" min="1" max="20" value="4">
+                        <button type="button" class="btn btn-small" id="generate-sets-table" style="margin-top: 10px;">Générer le tableau</button>
+                    </div>
+                    
+                    <div id="sets-table-container" style="display: none; margin-top: 20px;">
+                        <label style="display: block; margin-bottom: 10px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; font-size: 0.85rem;">Détails par série</label>
+                        <div style="overflow-x: auto;">
+                            <table id="sets-table" style="width: 100%; border-collapse: collapse; background: var(--bg-darker); border-radius: 8px; overflow: hidden;">
+                                <thead>
+                                    <tr style="background: var(--surface);">
+                                        <th style="padding: 10px; text-align: center; border-bottom: 2px solid var(--border);">Série</th>
+                                        <th style="padding: 10px; text-align: center; border-bottom: 2px solid var(--border);" id="reps-header-label">Reps</th>
+                                        <th style="padding: 10px; text-align: center; border-bottom: 2px solid var(--border);">Charge (kg)</th>
+                                        <th style="padding: 10px; text-align: center; border-bottom: 2px solid var(--border);">RPE (1-10)</th>
+                                        <th style="padding: 10px; text-align: center; border-bottom: 2px solid var(--border);">Statut</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="sets-table-body">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div id="cardio-fields" style="display: none;">
+                    <div class="form-group">
+                        <label for="exercise-laps">Nombre de tours</label>
+                        <input type="number" id="exercise-laps" placeholder="1" value="1" min="1">
+                    </div>
+                    <div class="form-group">
+                        <label for="exercise-distance" id="distance-label">Distance (m)</label>
+                        <input type="number" id="exercise-distance" placeholder="Ex: 10000" step="10" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="exercise-time">Temps (MM:SS ou HH:MM:SS)</label>
+                        <input type="text" id="exercise-time" placeholder="Ex: 45:30 ou 1:05:45">
+                    </div>
+                    <div class="form-group">
+                        <label for="exercise-pace">Allure - Auto-calculée</label>
+                        <input type="text" id="exercise-pace" placeholder="Calculé automatiquement" readonly style="background: var(--surface-light);">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="exercise-comment">Commentaire (optionnel)</label>
+                    <input type="text" id="exercise-comment" placeholder="Ressenti, notes...">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn" id="cancel-exercise-btn">Annuler</button>
+                    <button type="submit" class="btn btn-primary" id="submit-exercise-btn">Ajouter</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div id="exercise-db-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title" id="exercise-db-modal-title">Ajouter un exercice</h3>
+                <button class="close-modal" id="close-exercise-db-modal">×</button>
+            </div>
+            <form id="exercise-db-form">
+                <div class="form-group">
+                    <label for="exercise-db-name">Nom de l'exercice</label>
+                    <input type="text" id="exercise-db-name" placeholder="Ex: Développé couché" required>
+                </div>
+                <div class="form-group" id="exercise-db-type-field">
+                    <label for="exercise-db-type">Type</label>
+                    <select id="exercise-db-type" required>
+                        <option value="Musculation💪">Musculation💪</option>
+                        <option value="Hyrox🤖">Hyrox🤖</option>
+                    </select>
+                </div>
+                <div class="form-group" id="muscle-group-field">
+                    <label for="exercise-db-muscle">Muscle principal</label>
+                    <select id="exercise-db-muscle" required>
+                        <option value="">Sélectionnez le muscle</option>
+                        <option value="Abdos">Abdos</option>
+                        <option value="Abducteurs">Abducteurs</option>
+                        <option value="Adducteurs">Adducteurs</option>
+                        <option value="Biceps">Biceps</option>
+                        <option value="Dos">Dos</option>
+                        <option value="Epaules">Épaules</option>
+                        <option value="Fessiers">Fessiers</option>
+                        <option value="Ischio">Ischio-jambiers</option>
+                        <option value="Jambes">Jambes (global)</option>
+                        <option value="Mollets">Mollets</option>
+                        <option value="Pecs">Pecs</option>
+                        <option value="Quadriceps">Quadriceps</option>
+                        <option value="Triceps">Triceps</option>
+                    </select>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn" id="cancel-exercise-db-btn">Annuler</button>
+                    <button type="submit" class="btn btn-primary" id="submit-exercise-db-btn">Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <script>
+        let sessions = [];
+        let currentDate = new Date();
+        let editingSessionId = null;
+        let currentSessionId = null;
+        let editingExerciseIndex = null;
+        let exerciseDatabase = {};
+        let hyroxExercises = [];
+        let editingExerciseDbName = null;
+        let progressionChart = null;
+
+        const sessionTypes = {
+            'Running🏃‍➡️': ['Footing🏃‍➡️', 'Fractionné🏃‍➡️', 'Sortie longue🏃‍➡️', 'Course🏃‍➡️', 'Côtes🏃‍➡️', 'Seuil🏃‍➡️'],
+            'Musculation💪': ['Dos/Epaules/Biceps🦍', 'Pecs/Epaules/Triceps👕', 'Epaules/Abdos🍫', 'Haut du corps⬆️', 'Bas du corps⬇️', 'Full Body🏋️'],
+            'Hyrox🤖': ['EMOM1️⃣', 'AMRAP⏱️', 'For Time🔄️'],
+            'Cardio❤️‍🔥': ['Ergo⛷️🚣‍♂️', 'Cyclisme🚴', 'Natation🏊‍♂️']
+        };
+
+        const muscleGroups = {
+            'Dos': ['Dos/Epaules/Biceps🦍', 'Haut du corps⬆️', 'Full Body🏋️'],
+            'Biceps': ['Dos/Epaules/Biceps🦍', 'Haut du corps⬆️', 'Full Body🏋️'],
+            'Pecs': ['Pecs/Epaules/Triceps👕', 'Haut du corps⬆️', 'Full Body🏋️'],
+            'Triceps': ['Pecs/Epaules/Triceps👕', 'Haut du corps⬆️', 'Full Body🏋️'],
+            'Epaules': ['Dos/Epaules/Biceps🦍', 'Pecs/Epaules/Triceps👕', 'Epaules/Abdos🍫', 'Haut du corps⬆️', 'Full Body🏋️'],
+            'Abdos': ['Epaules/Abdos🍫', 'Haut du corps⬆️', 'Full Body🏋️'],
+            'Jambes': ['Bas du corps⬇️', 'Full Body🏋️'],
+            'Fessiers': ['Bas du corps⬇️', 'Full Body🏋️'],
+            'Quadriceps': ['Bas du corps⬇️', 'Full Body🏋️'],
+            'Ischio': ['Bas du corps⬇️', 'Full Body🏋️'],
+            'Mollets': ['Bas du corps⬇️', 'Full Body🏋️'],
+            'Adducteurs': ['Bas du corps⬇️', 'Full Body🏋️'],
+            'Abducteurs': ['Bas du corps⬇️', 'Full Body🏋️']
+        };
+
+        function loadData() {
+            const stored = localStorage.getItem('trainingSessions');
+            const storedExercises = localStorage.getItem('exerciseDatabase');
+            const storedHyrox = localStorage.getItem('hyroxExercises');
+
+            // Charger exerciseDatabase et hyroxExercises EN PREMIER
+            if (storedExercises) {
+                exerciseDatabase = JSON.parse(storedExercises);
+            } else {
+                exerciseDatabase = {
+                    'Développé couché': 'Pecs',
+                    'Développé incliné': 'Pecs',
+                    'Tractions': 'Dos',
+                    'Rowing': 'Dos',
+                    'Curl biceps': 'Biceps',
+                    'Développé militaire': 'Epaules',
+                    'Squat': 'Jambes',
+                    'Leg press': 'Jambes'
+                };
+            }
+
+            if (storedHyrox) {
+                hyroxExercises = JSON.parse(storedHyrox);
+            } else {
+                hyroxExercises = ['SkiErg', 'Sled Push', 'Sled Pull', 'Burpees', 'Rowing', 'Farmers Carry', 'Sandbag Lunges', 'Wall Balls'];
+            }
+
+            // Charger les sessions et appliquer les migrations si nécessaire
+            if (stored) {
+                sessions = JSON.parse(stored);
+                let migrated = false;
+                sessions.forEach(session => {
+                    if (session.name === 'Dos/Biceps🦍') {
+                        session.name = 'Dos/Epaules/Biceps🦍';
+                        migrated = true;
+                    }
+                    if (session.name === 'Pecs/Triceps👕' || session.name === 'Pecs/Epaules👕') {
+                        session.name = 'Pecs/Epaules/Triceps👕';
+                        migrated = true;
+                    }
+                });
+                if (migrated) {
+                    saveData(); // Sûr : exerciseDatabase et hyroxExercises déjà chargés
+                    console.log('Migration effectuée: séances renommées');
+                }
+            } else {
+                sessions = [];
+                saveData();
+            }
+        }
+
+            if (storedExercises) {
+                exerciseDatabase = JSON.parse(storedExercises);
+            } else {
+                exerciseDatabase = {
+                    'Développé couché': 'Pecs',
+                    'Développé incliné': 'Pecs',
+                    'Tractions': 'Dos',
+                    'Rowing': 'Dos',
+                    'Curl biceps': 'Biceps',
+                    'Développé militaire': 'Epaules',
+                    'Squat': 'Jambes',
+                    'Leg press': 'Jambes'
+                };
+            }
+
+            if (storedHyrox) {
+                hyroxExercises = JSON.parse(storedHyrox);
+            } else {
+                hyroxExercises = ['SkiErg', 'Sled Push', 'Sled Pull', 'Burpees', 'Rowing', 'Farmers Carry', 'Sandbag Lunges', 'Wall Balls'];
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem('trainingSessions', JSON.stringify(sessions));
+            localStorage.setItem('exerciseDatabase', JSON.stringify(exerciseDatabase));
+            localStorage.setItem('hyroxExercises', JSON.stringify(hyroxExercises));
+        }
+
+        function updateSessionNameOptions(type) {
+            const select = document.getElementById('session-name');
+            select.innerHTML = '';
+            (sessionTypes[type] || []).forEach(name => {
+                const option = document.createElement('option');
+                option.value = name;
+                option.textContent = name;
+                select.appendChild(option);
+            });
+            document.getElementById('cycle-group').style.display = type === 'Musculation💪' ? 'block' : 'none';
+        }
+
+        function calculatePace(distance, time, sessionName, isCycling = false) {
+            if (!distance || !time) return '';
+            
+            const parts = time.split(':').map(p => parseInt(p));
+            let totalSeconds = 0;
+            if (parts.length === 2) totalSeconds = parts[0] * 60 + parts[1];
+            else if (parts.length === 3) totalSeconds = parts[0] * 3600 + parts[1] * 60 + parts[2];
+            
+            if (sessionName.includes('Cyclisme') || isCycling) {
+                const hours = totalSeconds / 3600;
+                const speed = distance / hours;
+                return speed.toFixed(1) + ' km/h';
+            } else if (sessionName.includes('Ergo')) {
+                const distance500 = distance / 500;
+                const paceSeconds = totalSeconds / distance500;
+                const paceMin = Math.floor(paceSeconds / 60);
+                const paceSec = Math.round(paceSeconds % 60);
+                return paceMin + ':' + paceSec.toString().padStart(2, '0') + '/500m';
+            } else if (sessionName.includes('Natation')) {
+                const distance100 = distance / 100;
+                const paceSeconds = totalSeconds / distance100;
+                const paceMin = Math.floor(paceSeconds / 60);
+                const paceSec = Math.round(paceSeconds % 60);
+                return paceMin + ':' + paceSec.toString().padStart(2, '0') + '/100m';
+            } else {
+                const distanceKm = distance / 1000;
+                const paceSeconds = totalSeconds / distanceKm;
+                const paceMin = Math.floor(paceSeconds / 60);
+                const paceSec = Math.round(paceSeconds % 60);
+                return paceMin + ':' + paceSec.toString().padStart(2, '0') + '/km';
+            }
+        }
+
+        function updatePaceCalculation() {
+            const session = sessions.find(s => s.id === currentSessionId);
+            if (!session) return;
+            
+            const distance = document.getElementById('exercise-distance').value;
+            const time = document.getElementById('exercise-time').value;
+            const isCycling = session.name.includes('Cyclisme');
+            const pace = calculatePace(distance, time, session.name, isCycling);
+            document.getElementById('exercise-pace').value = pace;
+        }
+
+        document.getElementById('exercise-distance')?.addEventListener('input', updatePaceCalculation);
+        document.getElementById('exercise-time')?.addEventListener('input', updatePaceCalculation);
+
+        function renderCalendar() {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+            document.getElementById('current-month').textContent = monthNames[month] + ' ' + year;
+
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+            const prevLastDay = new Date(year, month, 0);
+            const firstDayWeekday = firstDay.getDay() || 7;
+            const lastDayDate = lastDay.getDate();
+            const prevLastDayDate = prevLastDay.getDate();
+
+            const calendarGrid = document.getElementById('calendar-grid');
+            calendarGrid.innerHTML = '';
+
+            for (let i = firstDayWeekday - 1; i > 0; i--) {
+                calendarGrid.appendChild(createDayElement(prevLastDayDate - i + 1, true, year, month - 1));
+            }
+
+            for (let day = 1; day <= lastDayDate; day++) {
+                calendarGrid.appendChild(createDayElement(day, false, year, month));
+            }
+
+            const remainingDays = 42 - calendarGrid.children.length;
+            for (let day = 1; day <= remainingDays; day++) {
+                calendarGrid.appendChild(createDayElement(day, true, year, month + 1));
+            }
+        }
+
+        function createDayElement(day, isOtherMonth, year, month) {
+            const dayElement = document.createElement('div');
+            dayElement.className = 'calendar-day';
+            if (isOtherMonth) dayElement.classList.add('other-month');
+
+            const dateStr = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+            const today = new Date();
+            if (year === today.getFullYear() && month === today.getMonth() && day === today.getDate() && !isOtherMonth) {
+                dayElement.classList.add('today');
+            }
+
+            dayElement.innerHTML = '<div class="day-number">' + day + '</div><div class="day-sessions"></div>';
+            const sessionsContainer = dayElement.querySelector('.day-sessions');
+            
+            sessions.filter(s => s.date === dateStr).forEach(session => {
+                const badge = document.createElement('div');
+                // Extraire le type sans emoji
+                const typeClass = session.type.replace(/🏃‍➡️|💪|🤖|❤️‍🔥/g, '').toLowerCase();
+                badge.className = 'session-badge ' + typeClass;
+                badge.textContent = session.name;
+                badge.onclick = (e) => {
+                    e.stopPropagation();
+                    showSessionDetails(session.id);
+                };
+                sessionsContainer.appendChild(badge);
+            });
+
+            dayElement.onclick = () => {
+                if (!isOtherMonth) openModal(dateStr);
+            };
+
+            return dayElement;
+        }
+
+        function openModal(date = null) {
+            const modal = document.getElementById('session-modal');
+            const dateInput = document.getElementById('session-date');
+            const typeSelect = document.getElementById('session-type');
+            
+            if (date) {
+                dateInput.value = date;
+                document.getElementById('modal-title').textContent = 'Nouvelle séance';
+                editingSessionId = null;
+                document.getElementById('session-comment').value = '';
+                document.getElementById('session-cycle').value = '';
+                document.getElementById('copy-from-session').value = '';
+                document.getElementById('copy-preview').style.display = 'none';
+            } else {
+                dateInput.value = new Date().toISOString().split('T')[0];
+            }
+            
+            updateSessionNameOptions(typeSelect.value);
+            populateCopySessionOptions(typeSelect.value);
+            modal.classList.add('active');
+        }
+
+        function populateCopySessionOptions(sessionType) {
+            const select = document.getElementById('copy-from-session');
+            select.innerHTML = '<option value="">-- Aucune copie --</option>';
+            
+            // Filtrer les séances du même type qui ont des exercices
+            const compatibleSessions = sessions.filter(s => 
+                s.type === sessionType && 
+                s.details && 
+                s.details.length > 0
+            ).sort((a, b) => new Date(b.date) - new Date(a.date)); // Plus récentes en premier
+            
+            if (compatibleSessions.length === 0) {
+                document.getElementById('copy-session-group').style.display = 'none';
+                return;
+            }
+            
+            document.getElementById('copy-session-group').style.display = 'block';
+            
+            compatibleSessions.forEach(session => {
+                const option = document.createElement('option');
+                option.value = session.id;
+                const sessionDate = new Date(session.date);
+                const dateStr = sessionDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+                const cycleInfo = session.cycle ? ` [${session.cycle}]` : '';
+                option.textContent = `${session.name}${cycleInfo} - ${dateStr} (${session.details.length} exo)`;
+                select.appendChild(option);
+            });
+        }
+
+        function showCopyPreview(sessionId) {
+            const previewDiv = document.getElementById('copy-preview');
+            const contentDiv = document.getElementById('copy-preview-content');
+            
+            if (!sessionId) {
+                previewDiv.style.display = 'none';
+                return;
+            }
+            
+            const session = sessions.find(s => s.id == sessionId);
+            if (!session || !session.details || session.details.length === 0) {
+                previewDiv.style.display = 'none';
+                return;
+            }
+            
+            let html = '<ul style="margin: 0; padding-left: 20px;">';
+            session.details.forEach(ex => {
+                html += '<li>';
+                if (ex.setsData && ex.setsData.length > 0) {
+                    html += `${ex.name} - ${ex.setsData.length} séries`;
+                } else if (ex.sets) {
+                    html += `${ex.name} - ${ex.sets} × ${ex.reps || '?'} ${ex.load ? '@ ' + ex.load + 'kg' : ''}`;
+                } else {
+                    html += ex.name;
+                }
+                html += '</li>';
+            });
+            html += '</ul>';
+            
+            contentDiv.innerHTML = html;
+            previewDiv.style.display = 'block';
+        }
+
+        function closeModal() {
+            document.getElementById('session-modal').classList.remove('active');
+            document.getElementById('session-form').reset();
+            editingSessionId = null;
+        }
+
+        function editSession(id) {
+            const session = sessions.find(s => s.id === id);
+            if (!session) return;
+
+            editingSessionId = id;
+            document.getElementById('modal-title').textContent = 'Modifier la séance';
+            document.getElementById('session-date').value = session.date;
+            document.getElementById('session-type').value = session.type;
+            document.getElementById('session-comment').value = session.comment || '';
+            document.getElementById('session-cycle').value = session.cycle || '';
+            
+            // Masquer la section de copie en mode édition
+            document.getElementById('copy-session-group').style.display = 'none';
+            document.getElementById('copy-from-session').value = '';
+            
+            // Afficher le cycle si c'est une séance de musculation
+            document.getElementById('cycle-group').style.display = session.type === 'Musculation💪' ? 'block' : 'none';
+            
+            updateSessionNameOptions(session.type);
+            document.getElementById('session-name').value = session.name;
+            document.getElementById('session-modal').classList.add('active');
+        }
+
+        function deleteSession(id) {
+            if (confirm('Supprimer cette séance ?')) {
+                sessions = sessions.filter(s => s.id !== id);
+                saveData();
+                closeDetailsModal();
+                renderAll();
+            }
+        }
+
+        function showSessionDetails(id) {
+            currentSessionId = id;
+            const session = sessions.find(s => s.id === id);
+            if (!session) return;
+
+            let nameDisplay = session.name;
+            if (session.type === 'Musculation💪' && session.cycle) nameDisplay += ' - ' + session.cycle;
+
+            document.getElementById('details-session-name').textContent = nameDisplay;
+            const dateObj = new Date(session.date);
+            document.getElementById('details-session-info').textContent = 
+                dateObj.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) + ' - ' + session.type;
+
+            const commentDisplay = document.getElementById('session-comment-display');
+            if (session.comment) {
+                commentDisplay.innerHTML = '<div class="session-comment-box"><h5 style="color: var(--text-secondary); font-size: 0.85rem; text-transform: uppercase; margin-bottom: 8px;">Commentaire de séance</h5><p style="color: var(--text-primary); font-style: italic;">' + session.comment + '</p></div>';
+            } else {
+                commentDisplay.innerHTML = '';
+            }
+
+            renderExercisesList(session);
+            document.getElementById('details-modal').classList.add('active');
+        }
+
+        function closeDetailsModal() {
+            document.getElementById('details-modal').classList.remove('active');
+            currentSessionId = null;
+        }
+
+        function renderExercisesList(session) {
+            const container = document.getElementById('exercises-list');
+            
+            if (!session.details || session.details.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: var(--text-secondary); padding: 40px;">Aucun exercice enregistré.</p>';
+                return;
+            }
+
+            const isCardio = session.type === 'Running🏃‍➡️' || session.type === 'Cardio❤️‍🔥';
+            const isRunning = session.type === 'Running🏃‍➡️';
+            const isHyrox = session.type === 'Hyrox🤖';
+            
+            let tableHTML = '<table class="exercise-table"><thead><tr><th>Exercice</th>';
+            
+            if (isCardio) {
+                if (isRunning) tableHTML += '<th>Tours</th>';
+                tableHTML += '<th>Distance</th><th>Temps</th><th>Allure</th>';
+            } else {
+                tableHTML += '<th>Séries</th>';
+                tableHTML += isHyrox ? '<th>Reps/Dist</th>' : '<th>Reps</th>';
+                tableHTML += '<th>Charge</th><th>1RM</th>';
+            }
+            
+            tableHTML += '<th>Commentaire</th><th></th></tr></thead><tbody>';
+
+            session.details.forEach((exercise, index) => {
+                tableHTML += '<tr><td data-label="Exercice"><strong>' + exercise.name + '</strong></td>';
+                
+                if (isCardio) {
+                    if (isRunning) tableHTML += '<td data-label="Tours">' + (exercise.laps || 1) + '</td>';
+                    const isCycling = session.name.includes('Cyclisme');
+                    const distUnit = isCycling ? ' km' : ' m';
+                    tableHTML += '<td data-label="Distance">' + (exercise.distance ? exercise.distance + distUnit : '-') + '</td>';
+                    tableHTML += '<td data-label="Temps">' + (exercise.time || '-') + '</td>';
+                    tableHTML += '<td data-label="Allure">' + (exercise.pace || '-') + '</td>';
+                } else {
+                    tableHTML += '<td data-label="Séries">' + (exercise.sets || '-') + '</td>';
+                    tableHTML += '<td data-label="' + (isHyrox ? 'Reps/Dist' : 'Reps') + '">' + (exercise.reps || '-') + '</td>';
+                    tableHTML += '<td data-label="Charge">' + (exercise.load ? exercise.load + ' kg' : '-') + '</td>';
+                    
+                    let rm = '-';
+                    const best1RM = calculateBest1RM(exercise);
+                    if (best1RM !== null) {
+                        rm = '<span class="rm-badge">' + best1RM.toFixed(1) + ' kg</span>';
+                    }
+                    tableHTML += '<td data-label="1RM">' + rm + '</td>';
+                }
+                
+                tableHTML += '<td data-label="Commentaire">' + (exercise.comment || '-') + '</td>';
+                tableHTML += '<td data-label="Actions" class="exercise-actions"><button class="btn-icon" onclick="editExercise(' + index + ')">✏️</button><button class="btn-icon btn-delete" onclick="deleteExercise(' + index + ')">🗑️</button></td></tr>';
+                
+                // Si l'exercice a des données détaillées de séries, afficher un sous-tableau
+                if (!isCardio && exercise.setsData && exercise.setsData.length > 0) {
+                    tableHTML += '<tr><td colspan="7" style="padding: 0; background: var(--surface);"><div style="padding: 15px; background: var(--surface);">';
+                    tableHTML += '<h4 style="margin-bottom: 10px; color: var(--text-secondary); font-size: 0.9rem;">Détails par série :</h4>';
+                    tableHTML += '<table style="width: 100%; font-size: 0.9rem; background: var(--bg-darker); border-radius: 6px; overflow: hidden;">';
+                    tableHTML += '<thead><tr style="background: var(--surface-light);">';
+                    tableHTML += '<th style="padding: 8px; text-align: center;">Série</th>';
+                    tableHTML += '<th style="padding: 8px; text-align: center;">' + (isHyrox ? 'Reps/Dist' : 'Reps') + '</th>';
+                    tableHTML += '<th style="padding: 8px; text-align: center;">Charge</th>';
+                    tableHTML += '<th style="padding: 8px; text-align: center;">1RM</th>';
+                    tableHTML += '<th style="padding: 8px; text-align: center;">RPE</th>';
+                    tableHTML += '<th style="padding: 8px; text-align: center;">Statut</th>';
+                    tableHTML += '</tr></thead><tbody>';
+                    
+                    let bestSetRM = null;
+                    let bestSetIndex = -1;
+                    
+                    // Premier passage pour trouver le meilleur 1RM (séries en échec exclues)
+                    exercise.setsData.forEach((set, idx) => {
+                        if (set.status === 'failed') return;
+                        if (set.load && set.reps && !isNaN(set.reps) && set.reps > 0) {
+                            const oneRM = set.load / (1.0278 - 0.0278 * set.reps);
+                            if (bestSetRM === null || oneRM > bestSetRM) {
+                                bestSetRM = oneRM;
+                                bestSetIndex = idx;
+                            }
+                        }
+                    });
+                    
+                    // Deuxième passage pour afficher
+                    exercise.setsData.forEach((set, idx) => {
+                        const status = set.status || (set.validated ? 'done' : 'none');
+                        let rowStyle = '';
+                        if (status === 'done') rowStyle = ' style="background: rgba(16, 185, 129, 0.08);"';
+                        if (status === 'failed') rowStyle = ' style="background: rgba(239, 68, 68, 0.08);"';
+                        tableHTML += '<tr' + rowStyle + '>';
+                        tableHTML += '<td style="padding: 8px; text-align: center; font-weight: 700; color: var(--accent-running);">' + set.setNumber + '</td>';
+                        tableHTML += '<td style="padding: 8px; text-align: center;">' + (set.reps || '-') + '</td>';
+                        tableHTML += '<td style="padding: 8px; text-align: center;">' + (set.load ? set.load + ' kg' : '-') + '</td>';
+                        
+                        // Colonne 1RM (ignorée si série en échec)
+                        let rmCell = '-';
+                        if (status !== 'failed' && set.load && set.reps && !isNaN(set.reps) && set.reps > 0) {
+                            const oneRM = set.load / (1.0278 - 0.0278 * set.reps);
+                            const isBest = (idx === bestSetIndex);
+                            rmCell = isBest 
+                                ? '<span class="rm-badge" style="background: var(--accent-running); font-weight: 900;">🏆 ' + oneRM.toFixed(1) + ' kg</span>'
+                                : '<span style="font-family: \'JetBrains Mono\', monospace;">' + oneRM.toFixed(1) + ' kg</span>';
+                        }
+                        tableHTML += '<td style="padding: 8px; text-align: center;">' + rmCell + '</td>';
+                        
+                        tableHTML += '<td style="padding: 8px; text-align: center;">' + (set.rpe ? '💪 ' + set.rpe + '/10' : '-') + '</td>';
+                        
+                        let statusCell = '⏳ En attente';
+                        if (status === 'done') statusCell = '✅ Validé';
+                        if (status === 'failed') statusCell = '❌ Échec';
+                        tableHTML += '<td style="padding: 8px; text-align: center;">' + statusCell + '</td>';
+                        tableHTML += '</tr>';
+                    });
+                    
+                    const doneCount = exercise.setsData.filter(s => (s.status || (s.validated ? 'done' : 'none')) === 'done').length;
+                    const failedCount = exercise.setsData.filter(s => s.status === 'failed').length;
+                    const total = exercise.setsData.length;
+                    tableHTML += '</tbody></table>';
+                    tableHTML += '<div style="margin-top: 10px; padding: 8px; background: var(--bg-darker); border-radius: 6px; text-align: center;">';
+                    tableHTML += '<strong>✅ ' + doneCount + ' validée(s)';
+                    if (failedCount > 0) tableHTML += ' &nbsp;| ❌ ' + failedCount + ' échec(s)';
+                    tableHTML += ' &nbsp;/ ' + total + ' séries au total</strong>';
+                    tableHTML += '</div></div></td></tr>';
+                }
+            });
+
+            tableHTML += '</tbody></table>';
+            container.innerHTML = tableHTML;
+        }
+
+        function calculateBest1RM(exercise) {
+            let best1RM = null;
+            
+            // Si l'exercice a des données détaillées par série
+            if (exercise.setsData && exercise.setsData.length > 0) {
+                exercise.setsData.forEach(set => {
+                    // Ignorer les séries en échec pour le calcul du 1RM
+                    if (set.status === 'failed') return;
+                    if (set.load && set.reps && !isNaN(set.reps) && set.reps > 0) {
+                        const oneRM = set.load / (1.0278 - 0.0278 * set.reps);
+                        if (best1RM === null || oneRM > best1RM) {
+                            best1RM = oneRM;
+                        }
+                    }
+                });
+            } 
+            // Sinon utiliser les anciennes données (backward compatibility)
+            else if (exercise.load && exercise.reps && !isNaN(exercise.reps) && exercise.reps > 0) {
+                best1RM = exercise.load / (1.0278 - 0.0278 * exercise.reps);
+            }
+            
+            return best1RM;
+        }
+
+        function generateSetsTable() {
+            const session = sessions.find(s => s.id === currentSessionId);
+            if (!session) return;
+            
+            const numSets = parseInt(document.getElementById('exercise-sets').value) || 4;
+            const isHyrox = session.type === 'Hyrox🤖';
+            
+            // Mettre à jour le label si Hyrox
+            if (isHyrox) {
+                document.getElementById('reps-header-label').textContent = 'Reps/Dist';
+            } else {
+                document.getElementById('reps-header-label').textContent = 'Reps';
+            }
+            
+            const tbody = document.getElementById('sets-table-body');
+            tbody.innerHTML = '';
+            
+            for (let i = 1; i <= numSets; i++) {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td><span class="set-number">${i}</span></td>
+                    <td><input type="text" class="set-input" data-set="${i}" data-field="reps" placeholder="${isHyrox ? '10 ou 100m' : '10'}" inputmode="numeric" pattern="[0-9.]*"></td>
+                    <td><input type="number" class="set-input" data-set="${i}" data-field="load" placeholder="60" step="0.5" min="0" inputmode="decimal"></td>
+                    <td><input type="number" class="set-input" data-set="${i}" data-field="rpe" placeholder="7" min="1" max="10" step="1" inputmode="numeric"></td>
+                    <td><button type="button" class="set-status-btn" data-set="${i}" data-field="status" data-status="none">⬜</button></td>
+                `;
+                tbody.appendChild(row);
+                
+                // Cycle 3 états au clic : none -> done -> failed -> none
+                const btn = row.querySelector('.set-status-btn');
+                btn.addEventListener('click', () => {
+                    const current = btn.getAttribute('data-status');
+                    if (current === 'none') {
+                        btn.setAttribute('data-status', 'done');
+                        btn.textContent = '✅';
+                        row.classList.remove('set-failed');
+                        row.classList.add('set-validated');
+                    } else if (current === 'done') {
+                        btn.setAttribute('data-status', 'failed');
+                        btn.textContent = '❌';
+                        row.classList.remove('set-validated');
+                        row.classList.add('set-failed');
+                    } else {
+                        btn.setAttribute('data-status', 'none');
+                        btn.textContent = '⬜';
+                        row.classList.remove('set-validated', 'set-failed');
+                    }
+                });
+            }
+            
+            document.getElementById('sets-table-container').style.display = 'block';
+        }
+
+        function loadSetsDataIntoTable(setsData) {
+            if (!setsData || setsData.length === 0) return;
+            
+            const tbody = document.getElementById('sets-table-body');
+            const rows = tbody.querySelectorAll('tr');
+            
+            setsData.forEach((set, index) => {
+                if (index < rows.length) {
+                    const row = rows[index];
+                    
+                    const repsInput = row.querySelector('[data-field="reps"]');
+                    const loadInput = row.querySelector('[data-field="load"]');
+                    const rpeInput = row.querySelector('[data-field="rpe"]');
+                    const statusBtn = row.querySelector('[data-field="status"]');
+                    
+                    if (repsInput) repsInput.value = set.reps || '';
+                    if (loadInput) loadInput.value = set.load || '';
+                    if (rpeInput) rpeInput.value = set.rpe || '';
+                    if (statusBtn) {
+                        // Rétrocompatibilité : ancien champ "validated" -> status "done"
+                        let status = set.status || (set.validated ? 'done' : 'none');
+                        statusBtn.setAttribute('data-status', status);
+                        if (status === 'done') {
+                            statusBtn.textContent = '✅';
+                            row.classList.add('set-validated');
+                        } else if (status === 'failed') {
+                            statusBtn.textContent = '❌';
+                            row.classList.add('set-failed');
+                        } else {
+                            statusBtn.textContent = '⬜';
+                        }
+                    }
+                }
+            });
+        }
+
+        function getSetsDataFromTable() {
+            const tbody = document.getElementById('sets-table-body');
+            const rows = tbody.querySelectorAll('tr');
+            const setsData = [];
+            
+            rows.forEach((row, index) => {
+                const repsInput = row.querySelector('[data-field="reps"]');
+                const loadInput = row.querySelector('[data-field="load"]');
+                const rpeInput = row.querySelector('[data-field="rpe"]');
+                const statusBtn = row.querySelector('[data-field="status"]');
+                
+                const status = statusBtn ? statusBtn.getAttribute('data-status') : 'none';
+                const set = {
+                    setNumber: index + 1,
+                    reps: repsInput ? repsInput.value : '',
+                    load: loadInput ? parseFloat(loadInput.value) || null : null,
+                    rpe: rpeInput ? parseInt(rpeInput.value) || null : null,
+                    status: status,
+                    validated: status === 'done'   // rétrocompatibilité
+                };
+                
+                setsData.push(set);
+            });
+            
+            return setsData;
+        }
+
+        function openExerciseModal() {
+            const session = sessions.find(s => s.id === currentSessionId);
+            if (!session) return;
+
+            const isCardio = session.type === 'Running🏃‍➡️' || session.type === 'Cardio❤️‍🔥';
+            const isMusculation = session.type === 'Musculation💪';
+            const isHyrox = session.type === 'Hyrox🤖';
+            const isCycling = session.name.includes('Cyclisme');
+            
+            document.getElementById('strength-fields').style.display = isCardio ? 'none' : 'block';
+            document.getElementById('cardio-fields').style.display = isCardio ? 'block' : 'none';
+
+            const distLabel = document.getElementById('distance-label');
+            if (isCycling) {
+                distLabel.textContent = 'Distance (km)';
+                document.getElementById('exercise-distance').placeholder = 'Ex: 50';
+                document.getElementById('exercise-distance').step = '0.1';
+            } else {
+                distLabel.textContent = 'Distance (m)';
+                document.getElementById('exercise-distance').placeholder = 'Ex: 10000';
+                document.getElementById('exercise-distance').step = '10';
+            }
+
+            if (isMusculation || isHyrox) {
+                document.getElementById('exercise-name-select').style.display = 'block';
+                document.getElementById('exercise-name-input').style.display = 'none';
+                document.getElementById('toggle-new-exercise-inline').style.display = 'block';
+                updateExerciseNameOptions(session.name, session.type);
+            } else {
+                document.getElementById('exercise-name-select').style.display = 'none';
+                document.getElementById('exercise-name-input').style.display = 'block';
+                document.getElementById('toggle-new-exercise-inline').style.display = 'none';
+            }
+
+            // Réinitialiser le tableau de séries
+            document.getElementById('sets-table-container').style.display = 'none';
+            document.getElementById('exercise-sets').value = 4;
+
+            document.getElementById('exercise-modal-title').textContent = 'Ajouter un exercice';
+            document.getElementById('submit-exercise-btn').textContent = 'Ajouter';
+            editingExerciseIndex = null;
+            document.getElementById('exercise-modal').classList.add('active');
+        }
+
+        function editExercise(index) {
+            const session = sessions.find(s => s.id === currentSessionId);
+            if (!session) return;
+
+            editingExerciseIndex = index;
+            const exercise = session.details[index];
+            
+            const isCardio = session.type === 'Running🏃‍➡️' || session.type === 'Cardio❤️‍🔥';
+            const isMusculation = session.type === 'Musculation💪';
+            const isHyrox = session.type === 'Hyrox🤖';
+            const isCycling = session.name.includes('Cyclisme');
+            
+            document.getElementById('strength-fields').style.display = isCardio ? 'none' : 'block';
+            document.getElementById('cardio-fields').style.display = isCardio ? 'block' : 'none';
+
+            const distLabel = document.getElementById('distance-label');
+            if (isCycling) {
+                distLabel.textContent = 'Distance (km)';
+                document.getElementById('exercise-distance').step = '0.1';
+            } else {
+                distLabel.textContent = 'Distance (m)';
+                document.getElementById('exercise-distance').step = '10';
+            }
+
+            if (isMusculation || isHyrox) {
+                document.getElementById('exercise-name-select').style.display = 'block';
+                document.getElementById('exercise-name-input').style.display = 'none';
+                document.getElementById('toggle-new-exercise-inline').style.display = 'block';
+                updateExerciseNameOptions(session.name, session.type);
+                document.getElementById('exercise-name-select').value = exercise.name;
+            } else {
+                document.getElementById('exercise-name-select').style.display = 'none';
+                document.getElementById('exercise-name-input').style.display = 'block';
+                document.getElementById('toggle-new-exercise-inline').style.display = 'none';
+                document.getElementById('exercise-name-input').value = exercise.name;
+            }
+
+            if (isCardio) {
+                document.getElementById('exercise-laps').value = exercise.laps || 1;
+                document.getElementById('exercise-distance').value = exercise.distance || '';
+                document.getElementById('exercise-time').value = exercise.time || '';
+                document.getElementById('exercise-pace').value = exercise.pace || '';
+            } else {
+                // Si l'exercice a des données de séries détaillées, les charger
+                if (exercise.setsData && exercise.setsData.length > 0) {
+                    document.getElementById('exercise-sets').value = exercise.setsData.length;
+                    generateSetsTable();
+                    loadSetsDataIntoTable(exercise.setsData);
+                } else {
+                    // Ancien format (backward compatibility)
+                    document.getElementById('exercise-sets').value = exercise.sets || 3;
+                    if (exercise.sets) {
+                        generateSetsTable();
+                        // Pré-remplir avec les données anciennes si disponibles
+                        if (exercise.reps || exercise.load) {
+                            const tbody = document.getElementById('sets-table-body');
+                            const rows = tbody.querySelectorAll('tr');
+                            rows.forEach(row => {
+                                if (exercise.reps) row.querySelector('[data-field="reps"]').value = exercise.reps;
+                                if (exercise.load) row.querySelector('[data-field="load"]').value = exercise.load;
+                            });
+                        }
+                    }
+                }
+            }
+
+            document.getElementById('exercise-comment').value = exercise.comment || '';
+            document.getElementById('exercise-modal-title').textContent = 'Modifier l\'exercice';
+            document.getElementById('submit-exercise-btn').textContent = 'Modifier';
+            document.getElementById('exercise-modal').classList.add('active');
+        }
+
+        function updateExerciseNameOptions(sessionName, sessionType) {
+            const select = document.getElementById('exercise-name-select');
+            select.innerHTML = '';
+            
+            if (sessionType === 'Hyrox') {
+                hyroxExercises.sort().forEach(name => {
+                    const option = document.createElement('option');
+                    option.value = name;
+                    option.textContent = name;
+                    select.appendChild(option);
+                });
+            } else {
+                const availableExercises = [];
+                Object.entries(exerciseDatabase).forEach(([exerciseName, muscleGroup]) => {
+                    if (muscleGroups[muscleGroup] && muscleGroups[muscleGroup].includes(sessionName)) {
+                        availableExercises.push(exerciseName);
+                    }
+                });
+                availableExercises.sort().forEach(name => {
+                    const option = document.createElement('option');
+                    option.value = name;
+                    option.textContent = name;
+                    select.appendChild(option);
+                });
+            }
+        }
+
+        function closeExerciseModal() {
+            document.getElementById('exercise-modal').classList.remove('active');
+            document.getElementById('exercise-form').reset();
+            document.getElementById('sets-table-container').style.display = 'none';
+            document.getElementById('add-new-exercise-inline').style.display = 'none';
+            document.getElementById('toggle-new-exercise-inline').style.display = 'none';
+            editingExerciseIndex = null;
+        }
+
+        function deleteExercise(index) {
+            if (confirm('Supprimer cet exercice ?')) {
+                const session = sessions.find(s => s.id === currentSessionId);
+                if (session) {
+                    session.details.splice(index, 1);
+                    saveData();
+                    renderExercisesList(session);
+                    renderProgression();
+                }
+            }
+        }
+
+        document.getElementById('session-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const date = document.getElementById('session-date').value;
+            const type = document.getElementById('session-type').value;
+            const name = document.getElementById('session-name').value;
+            const comment = document.getElementById('session-comment').value;
+            const cycle = document.getElementById('session-cycle').value;
+
+            if (editingSessionId) {
+                const session = sessions.find(s => s.id === editingSessionId);
+                session.date = date;
+                session.type = type;
+                session.name = name;
+                session.comment = comment;
+                session.cycle = cycle;
+            } else {
+                const copyFromSessionId = document.getElementById('copy-from-session').value;
+                let copiedDetails = [];
+                
+                // Si l'utilisateur a sélectionné une séance à copier
+                if (copyFromSessionId) {
+                    const sourceSession = sessions.find(s => s.id == copyFromSessionId);
+                    if (sourceSession && sourceSession.details) {
+                        // Copie profonde des exercices
+                        copiedDetails = JSON.parse(JSON.stringify(sourceSession.details));
+                    }
+                }
+                
+                sessions.push({
+                    id: Date.now(),
+                    date: date, type: type, name: name, comment: comment,
+                    cycle: type === 'Musculation💪' ? cycle : '',
+                    details: copiedDetails
+                });
+            }
+
+            saveData();
+            closeModal();
+            renderAll();
+        });
+
+        document.getElementById('exercise-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+
+            const session = sessions.find(s => s.id === currentSessionId);
+            if (!session) return;
+
+            const isCardio = session.type === 'Running🏃‍➡️' || session.type === 'Cardio❤️‍🔥';
+            const isMusculation = session.type === 'Musculation💪';
+            const isHyrox = session.type === 'Hyrox🤖';
+            const isCycling = session.name.includes('Cyclisme');
+
+            const exercise = {
+                name: (isMusculation || isHyrox) ? 
+                    document.getElementById('exercise-name-select').value : 
+                    document.getElementById('exercise-name-input').value,
+                comment: document.getElementById('exercise-comment').value
+            };
+
+            if (isCardio) {
+                const distance = document.getElementById('exercise-distance').value;
+                const time = document.getElementById('exercise-time').value;
+                
+                exercise.laps = document.getElementById('exercise-laps').value || 1;
+                exercise.distance = distance;
+                exercise.time = time;
+                exercise.pace = calculatePace(distance, time, session.name, isCycling);
+            } else {
+                // Nouveau système : sauvegarder les données détaillées par série
+                const setsData = getSetsDataFromTable();
+                if (setsData.length > 0) {
+                    exercise.setsData = setsData;
+                    exercise.sets = setsData.length;
+                    
+                    // Calculer des moyennes pour backward compatibility et affichage
+                    const validSets = setsData.filter(s => s.reps && s.load);
+                    if (validSets.length > 0) {
+                        const avgReps = validSets.reduce((sum, s) => sum + (parseFloat(s.reps) || 0), 0) / validSets.length;
+                        const avgLoad = validSets.reduce((sum, s) => sum + (s.load || 0), 0) / validSets.length;
+                        exercise.reps = avgReps.toFixed(1);
+                        exercise.load = avgLoad.toFixed(1);
+                    }
+                } else {
+                    // Pas de tableau généré, utiliser l'ancien système (ne devrait pas arriver)
+                    exercise.sets = document.getElementById('exercise-sets').value;
+                }
+            }
+
+            if (!session.details) session.details = [];
+            
+            if (editingExerciseIndex !== null) {
+                session.details[editingExerciseIndex] = exercise;
+            } else {
+                session.details.push(exercise);
+            }
+
+            saveData();
+            closeExerciseModal();
+            renderExercisesList(session);
+            renderProgression();
+        });
+
+        function renderExerciseList() {
+            const filterType = document.getElementById('filter-session-type').value;
+            const filterMuscle = document.getElementById('filter-muscle-group').value;
+            const container = document.getElementById('exercise-list');
+            
+            let exercises = [];
+            
+            if (filterType === 'all' || filterType === 'Musculation💪') {
+                Object.entries(exerciseDatabase).forEach(([name, muscle]) => {
+                    if (filterMuscle === 'all' || filterMuscle === muscle || filterType === 'all') {
+                        exercises.push({ name: name, type: 'Musculation💪', muscle: muscle });
+                    }
+                });
+            }
+            
+            if (filterType === 'all' || filterType === 'Hyrox🤖') {
+                hyroxExercises.forEach(name => {
+                    exercises.push({ name: name, type: 'Hyrox🤖', muscle: '-' });
+                });
+            }
+
+            if (exercises.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: var(--text-secondary); padding: 40px;">Aucun exercice trouvé.</p>';
+                return;
+            }
+
+            container.innerHTML = '';
+            exercises.sort((a, b) => a.name.localeCompare(b.name)).forEach(ex => {
+                const item = document.createElement('div');
+                item.className = 'exercise-item';
+                item.style.borderLeftColor = ex.type === 'Musculation💪' ? 'var(--accent-musculation)' : 'var(--accent-hyrox)';
+                
+                item.innerHTML = '<div><h4>' + ex.name + '</h4><p style="color: var(--text-secondary); font-size: 0.9rem; margin: 0;">' + 
+                    ex.type + (ex.muscle !== '-' ? ' - ' + ex.muscle : '') + '</p></div>' +
+                    '<div style="display: flex; gap: 10px;">' +
+                    '<button class="btn-icon" onclick="editExerciseDb(\'' + ex.name + '\', \'' + ex.type + '\')">✏️ Modifier</button>' +
+                    '<button class="btn-icon btn-delete" onclick="deleteExerciseDb(\'' + ex.name + '\', \'' + ex.type + '\')">🗑️</button></div>';
+                container.appendChild(item);
+            });
+        }
+
+        function openExerciseDbModal() {
+            document.getElementById('exercise-db-modal-title').textContent = 'Ajouter un exercice';
+            document.getElementById('submit-exercise-db-btn').textContent = 'Enregistrer';
+            editingExerciseDbName = null;
+            document.getElementById('exercise-db-name').value = '';
+            document.getElementById('exercise-db-type').value = 'Musculation💪';
+            document.getElementById('exercise-db-type-field').style.display = 'block';
+            document.getElementById('exercise-db-muscle').value = '';
+            updateMuscleFieldVisibility();
+            document.getElementById('exercise-db-modal').classList.add('active');
+        }
+
+        function editExerciseDb(name, type) {
+            editingExerciseDbName = name;
+            document.getElementById('exercise-db-modal-title').textContent = 'Modifier l'exercice';
+            document.getElementById('submit-exercise-db-btn').textContent = 'Enregistrer';
+            document.getElementById('exercise-db-name').value = name;
+            document.getElementById('exercise-db-type').value = type;
+            document.getElementById('exercise-db-type-field').style.display = 'none';
+            
+            if (type === 'Musculation💪') {
+                document.getElementById('exercise-db-muscle').value = exerciseDatabase[name] || '';
+                document.getElementById('muscle-group-field').style.display = 'block';
+            } else {
+                document.getElementById('muscle-group-field').style.display = 'none';
+            }
+            
+            document.getElementById('exercise-db-modal').classList.add('active');
+        }
+
+        function deleteExerciseDb(name, type) {
+            if (confirm('Supprimer "' + name + '" ?')) {
+                if (type === 'Musculation💪') {
+                    delete exerciseDatabase[name];
+                } else {
+                    hyroxExercises = hyroxExercises.filter(e => e !== name);
+                }
+                saveData();
+                renderExerciseList();
+            }
+        }
+
+        function updateMuscleFieldVisibility() {
+            const type = document.getElementById('exercise-db-type').value;
+            document.getElementById('muscle-group-field').style.display = type === 'Musculation💪' ? 'block' : 'none';
+        }
+
+        function closeExerciseDbModal() {
+            document.getElementById('exercise-db-modal').classList.remove('active');
+            document.getElementById('exercise-db-form').reset();
+            document.getElementById('exercise-db-type-field').style.display = 'block';
+            editingExerciseDbName = null;
+        }
+
+        document.getElementById('exercise-db-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const name = document.getElementById('exercise-db-name').value.trim();
+            const type = document.getElementById('exercise-db-type').value;
+            const muscle = document.getElementById('exercise-db-muscle').value;
+
+            if (!name) {
+                alert('Veuillez entrer un nom');
+                return;
+            }
+
+            if (type === 'Musculation💪' && !muscle) {
+                alert('Veuillez sélectionner le muscle');
+                return;
+            }
+
+            if (editingExerciseDbName && editingExerciseDbName !== name) {
+                if (type === 'Musculation💪') {
+                    delete exerciseDatabase[editingExerciseDbName];
+                    exerciseDatabase[name] = muscle;
+                } else {
+                    hyroxExercises = hyroxExercises.filter(e => e !== editingExerciseDbName);
+                    hyroxExercises.push(name);
+                }
+            } else {
+                if (type === 'Musculation💪') {
+                    exerciseDatabase[name] = muscle;
+                } else {
+                    if (!hyroxExercises.includes(name)) {
+                        hyroxExercises.push(name);
+                    }
+                }
+            }
+
+            saveData();
+            closeExerciseDbModal();
+            renderExerciseList();
+        });
+
+        function renderProgression() {
+            const selector = document.getElementById('exercise-selector');
+            selector.innerHTML = '';
+
+            const exerciseData = {};
+            
+            sessions.forEach(session => {
+                if (session.type === 'Musculation💪' && session.details) {
+                    session.details.forEach(exercise => {
+                        const best1RM = calculateBest1RM(exercise);
+                        if (best1RM !== null) {
+                            if (!exerciseData[exercise.name]) {
+                                // Trouver le muscle de cet exercice
+                                const muscle = exerciseDatabase[exercise.name] || 'Autre';
+                                exerciseData[exercise.name] = { muscle: muscle, data: [] };
+                            }
+                            exerciseData[exercise.name].data.push({ date: session.date, rm: best1RM });
+                        }
+                    });
+                }
+            });
+
+            // Grouper par muscle
+            const byMuscle = {};
+            Object.keys(exerciseData).forEach(exerciseName => {
+                const muscle = exerciseData[exerciseName].muscle;
+                if (!byMuscle[muscle]) byMuscle[muscle] = [];
+                byMuscle[muscle].push(exerciseName);
+            });
+
+            // Ordre de tri des muscles
+            const muscleOrder = ['Pecs', 'Dos', 'Epaules', 'Biceps', 'Triceps', 'Abdos', 'Jambes', 'Quadriceps', 'Ischio', 'Fessiers', 'Mollets', 'Adducteurs', 'Abducteurs', 'Autre'];
+            
+            muscleOrder.forEach(muscle => {
+                if (byMuscle[muscle] && byMuscle[muscle].length > 0) {
+                    // Ajouter un header pour le groupe musculaire
+                    const header = document.createElement('div');
+                    header.style.cssText = 'grid-column: 1 / -1; padding: 10px; background: var(--surface-light); border-radius: 6px; margin-top: 15px; font-weight: 700; color: var(--accent-running); text-transform: uppercase; font-size: 0.9rem;';
+                    header.textContent = muscle;
+                    selector.appendChild(header);
+                    
+                    // Ajouter les exercices de ce muscle (triés alphabétiquement)
+                    byMuscle[muscle].sort().forEach(exerciseName => {
+                        const div = document.createElement('div');
+                        div.className = 'exercise-checkbox';
+                        
+                        const checkbox = document.createElement('input');
+                        checkbox.type = 'checkbox';
+                        checkbox.id = 'ex-' + exerciseName;
+                        checkbox.value = exerciseName;
+                        checkbox.addEventListener('change', updateProgressionChart);
+                        
+                        const label = document.createElement('label');
+                        label.htmlFor = 'ex-' + exerciseName;
+                        label.textContent = exerciseName;
+                        label.style.cursor = 'pointer';
+                        label.style.flex = '1';
+                        
+                        div.appendChild(checkbox);
+                        div.appendChild(label);
+                        selector.appendChild(div);
+                    });
+                }
+            });
+
+            updateProgressionChart();
+        }
+
+        function updateProgressionChart() {
+            const canvas = document.getElementById('progression-chart');
+            const ctx = canvas.getContext('2d');
+
+            if (progressionChart) {
+                progressionChart.destroy();
+                progressionChart = null;
+            }
+
+            const selectedExercises = Array.from(document.querySelectorAll('#exercise-selector input[type="checkbox"]:checked')).map(cb => cb.value);
+
+            if (selectedExercises.length === 0) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#8b949e';
+                ctx.font = '16px Archivo';
+                ctx.textAlign = 'center';
+                ctx.fillText('Sélectionnez des exercices pour voir la progression', canvas.width / 2, canvas.height / 2);
+                return;
+            }
+
+            const datasets = [];
+            const colors = ['#3b82f6', '#ef4444', '#f59e0b', '#10b981', '#8b5cf6', '#ec4899', '#14b8a6'];
+
+            selectedExercises.forEach((exerciseName, index) => {
+                const data = [];
+                sessions.forEach(session => {
+                    if (session.type === 'Musculation💪' && session.details) {
+                        session.details.forEach(exercise => {
+                            if (exercise.name === exerciseName) {
+                                const best1RM = calculateBest1RM(exercise);
+                                if (best1RM !== null) {
+                                    data.push({ x: session.date, y: parseFloat(best1RM.toFixed(1)) });
+                                }
+                            }
+                        });
+                    }
+                });
+
+                data.sort((a, b) => new Date(a.x) - new Date(b.x));
+
+                datasets.push({
+                    label: exerciseName,
+                    data: data,
+                    borderColor: colors[index % colors.length],
+                    backgroundColor: colors[index % colors.length] + '33',
+                    tension: 0.3,
+                    pointRadius: 5,
+                    pointHoverRadius: 7
+                });
+            });
+
+            progressionChart = new Chart(ctx, {
+                type: 'line',
+                data: { datasets: datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Évolution du 1RM par exercice',
+                            color: '#e6edf3',
+                            font: { size: 18, weight: 'bold' }
+                        },
+                        legend: { labels: { color: '#e6edf3' } },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.parsed.y + ' kg';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'day',
+                                displayFormats: { day: 'dd/MM/yyyy' },
+                                tooltipFormat: 'dd/MM/yyyy'
+                            },
+                            ticks: { color: '#8b949e' },
+                            grid: { color: '#2a3441' }
+                        },
+                        y: {
+                            beginAtZero: false,
+                            ticks: {
+                                color: '#8b949e',
+                                callback: function(value) { return value + ' kg'; }
+                            },
+                            grid: { color: '#2a3441' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderStats() {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            const monthSessions = sessions.filter(s => {
+                const sessionDate = new Date(s.date);
+                return sessionDate.getFullYear() === year && sessionDate.getMonth() === month;
+            });
+
+            document.getElementById('stat-total-sessions').textContent = monthSessions.length;
+            document.getElementById('stat-running').textContent = monthSessions.filter(s => s.type === 'Running🏃‍➡️').length;
+            document.getElementById('stat-musculation').textContent = monthSessions.filter(s => s.type === 'Musculation💪').length;
+            document.getElementById('stat-hyrox').textContent = monthSessions.filter(s => s.type === 'Hyrox🤖').length;
+            document.getElementById('stat-cardio').textContent = monthSessions.filter(s => s.type === 'Cardio❤️‍🔥').length;
+            
+            const today = new Date();
+            const d = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
+            const dayNum = d.getUTCDay() || 7;
+            d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+            const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+            const weekNumber = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+            document.getElementById('stat-week').textContent = weekNumber;
+        }
+
+        function renderSessionsList() {
+            const sessionList = document.getElementById('session-list');
+            if (sessions.length === 0) {
+                sessionList.innerHTML = '<p style="text-align: center; color: var(--text-secondary); padding: 40px;">Aucune séance</p>';
+                return;
+            }
+
+            sessionList.innerHTML = '';
+            sessions.slice().sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(session => {
+                const item = document.createElement('div');
+                item.className = 'session-item';
+                item.style.borderLeftColor = 
+                    session.type === 'Running🏃‍➡️' ? 'var(--accent-running)' :
+                    session.type === 'Musculation💪' ? 'var(--accent-musculation)' :
+                    session.type === 'Hyrox🤖' ? 'var(--accent-hyrox)' : 'var(--accent-cardio)';
+                
+                const exerciseCount = session.details ? session.details.length : 0;
+                const cycleText = session.type === 'Musculation💪' && session.cycle ? ' [' + session.cycle + ']' : '';
+                
+                item.innerHTML = '<div><h4>' + session.name + cycleText + '</h4>' +
+                    '<p style="color: var(--text-secondary); font-size: 0.9rem; margin: 0;">' +
+                    new Date(session.date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) + ' - ' +
+                    session.type + (exerciseCount > 0 ? ' - ' + exerciseCount + ' exercice' + (exerciseCount > 1 ? 's' : '') : '') + '</p></div>' +
+                    '<div style="display: flex; gap: 10px;">' +
+                    '<button class="btn-icon" onclick="showSessionDetails(' + session.id + ')">👁️ Détails</button>' +
+                    '<button class="btn-icon btn-delete" onclick="deleteSession(' + session.id + ')">🗑️</button></div>';
+                sessionList.appendChild(item);
+            });
+        }
+
+        function renderAll() {
+            renderCalendar();
+            renderStats();
+            renderSessionsList();
+        }
+
+        async function exportToExcel() {
+            // Charger la bibliothèque SheetJS si pas déjà chargée
+            if (typeof XLSX === 'undefined') {
+                const script = document.createElement('script');
+                script.src = 'https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js';
+                document.head.appendChild(script);
+                await new Promise(resolve => script.onload = resolve);
+            }
+
+            const workbook = XLSX.utils.book_new();
+
+            // Feuille 1 : Vue d'ensemble des séances
+            const sessionsData = sessions.map(session => {
+                const exerciseCount = session.details ? session.details.length : 0;
+                return {
+                    'Date': session.date,
+                    'Type': session.type,
+                    'Nom': session.name,
+                    'Cycle': session.cycle || '-',
+                    'Nb Exercices': exerciseCount,
+                    'Commentaire': session.comment || '-'
+                };
+            }).sort((a, b) => new Date(b.Date) - new Date(a.Date));
+
+            const ws1 = XLSX.utils.json_to_sheet(sessionsData);
+            XLSX.utils.book_append_sheet(workbook, ws1, 'Séances');
+
+            // Feuille 2 : Détail de tous les exercices
+            const exercisesData = [];
+            sessions.forEach(session => {
+                if (session.details && session.details.length > 0) {
+                    session.details.forEach(exercise => {
+                        const best1RM = calculateBest1RM(exercise);
+                        
+                        const baseRow = {
+                            'Date': session.date,
+                            'Séance': session.name,
+                            'Exercice': exercise.name,
+                            'Séries': exercise.sets || '-',
+                            'Commentaire': exercise.comment || '-'
+                        };
+
+                        // Si cardio
+                        if (session.type === 'Running🏃‍➡️' || session.type === 'Cardio❤️‍🔥') {
+                            exercisesData.push({
+                                ...baseRow,
+                                'Tours': exercise.laps || '-',
+                                'Distance': exercise.distance || '-',
+                                'Temps': exercise.time || '-',
+                                'Allure': exercise.pace || '-',
+                                'Reps': '-',
+                                'Charge': '-',
+                                '1RM': '-'
+                            });
+                        } else {
+                            // Si musculation/hyrox
+                            exercisesData.push({
+                                ...baseRow,
+                                'Tours': '-',
+                                'Distance': '-',
+                                'Temps': '-',
+                                'Allure': '-',
+                                'Reps': exercise.reps || '-',
+                                'Charge': exercise.load ? exercise.load + ' kg' : '-',
+                                '1RM': best1RM ? best1RM.toFixed(1) + ' kg' : '-'
+                            });
+                        }
+                    });
+                }
+            });
+
+            const ws2 = XLSX.utils.json_to_sheet(exercisesData);
+            XLSX.utils.book_append_sheet(workbook, ws2, 'Exercices');
+
+            // Feuille 3 : Détail série par série (pour les exercices avec setsData)
+            const setsData = [];
+            sessions.forEach(session => {
+                if (session.details && session.details.length > 0) {
+                    session.details.forEach(exercise => {
+                        if (exercise.setsData && exercise.setsData.length > 0) {
+                            exercise.setsData.forEach(set => {
+                                const oneRM = (set.load && set.reps && !isNaN(set.reps) && set.reps > 0) 
+                                    ? (set.load / (1.0278 - 0.0278 * set.reps)).toFixed(1) 
+                                    : '-';
+                                
+                                setsData.push({
+                                    'Date': session.date,
+                                    'Séance': session.name,
+                                    'Exercice': exercise.name,
+                                    'Série': set.setNumber,
+                                    'Reps': set.reps || '-',
+                                    'Charge (kg)': set.load || '-',
+                                    '1RM (kg)': oneRM,
+                                    'RPE': set.rpe || '-',
+                                    'Validé': set.validated ? 'Oui' : 'Non'
+                                });
+                            });
+                        }
+                    });
+                }
+            });
+
+            if (setsData.length > 0) {
+                const ws3 = XLSX.utils.json_to_sheet(setsData);
+                XLSX.utils.book_append_sheet(workbook, ws3, 'Détail Séries');
+            }
+
+            // Feuille 4 : Statistiques mensuelles
+            const monthlyStats = {};
+            sessions.forEach(session => {
+                const date = new Date(session.date);
+                const monthKey = date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0');
+                
+                if (!monthlyStats[monthKey]) {
+                    monthlyStats[monthKey] = {
+                        'Mois': monthKey,
+                        'Total Séances': 0,
+                        'Running🏃‍➡️': 0,
+                        'Musculation💪': 0,
+                        'Hyrox🤖': 0,
+                        'Cardio❤️‍🔥': 0
+                    };
+                }
+                
+                monthlyStats[monthKey]['Total Séances']++;
+                monthlyStats[monthKey][session.type]++;
+            });
+
+            const statsArray = Object.values(monthlyStats).sort((a, b) => b.Mois.localeCompare(a.Mois));
+            const ws4 = XLSX.utils.json_to_sheet(statsArray);
+            XLSX.utils.book_append_sheet(workbook, ws4, 'Statistiques');
+
+            // Feuille 5 : Base d'exercices
+            const exerciseDbData = Object.entries(exerciseDatabase).map(([name, muscle]) => ({
+                'Exercice': name,
+                'Muscle': muscle
+            })).sort((a, b) => a.Muscle.localeCompare(b.Muscle) || a.Exercice.localeCompare(b.Exercice));
+
+            const ws5 = XLSX.utils.json_to_sheet(exerciseDbData);
+            XLSX.utils.book_append_sheet(workbook, ws5, 'Base Exercices');
+
+            // Générer le fichier
+            const date = new Date().toISOString().split('T')[0];
+            const filename = `training_planner_export_${date}.xlsx`;
+            XLSX.writeFile(workbook, filename);
+
+            alert('✅ Export Excel réussi !\nFichier téléchargé : ' + filename);
+        }
+
+        // ========================================
+        // GOOGLE DRIVE SYNCHRONIZATION
+        // ========================================
+        
+        const GDRIVE_CONFIG = {
+            CLIENT_ID: '894660342163-hd3m387fiu2c8ndefa1efcv5v3hla900.apps.googleusercontent.com', // À remplacer par ton Client ID
+            API_KEY: 'AIzaSyAgfCd6cus4Vhai2eXoGopiFBK-vxMFTj0',     // À remplacer par ton API Key
+            DISCOVERY_DOCS: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
+            SCOPES: 'https://www.googleapis.com/auth/drive.file',
+            FILE_NAME: 'training_planner_data.json'
+        };
+
+        let gdriveFileId = localStorage.getItem('gdriveFileId');
+        let gdriveAccessToken = null;
+        let gapiInited = false;
+        let gisInited = false;
+        let tokenClient;
+
+        // Charger les API Google
+        function loadGoogleAPIs() {
+            console.log('🔄 Chargement des API Google...');
+            
+            // Charger l'API Google Identity Services
+            const gisScript = document.createElement('script');
+            gisScript.src = 'https://accounts.google.com/gsi/client';
+            gisScript.onload = () => {
+                console.log('✅ Google Identity Services chargé');
+                try {
+                    tokenClient = google.accounts.oauth2.initTokenClient({
+                        client_id: GDRIVE_CONFIG.CLIENT_ID,
+                        scope: GDRIVE_CONFIG.SCOPES,
+                        callback: (tokenResponse) => {
+                            if (tokenResponse.error) {
+                                console.error('❌ Erreur OAuth:', tokenResponse.error);
+                                updateGDriveStatus('error', tokenResponse.error);
+                                return;
+                            }
+                            gdriveAccessToken = tokenResponse.access_token;
+                            localStorage.setItem('gdriveAccessToken', gdriveAccessToken);
+                            updateGDriveStatus('connected');
+                            console.log('✅ Connecté à Google Drive - Prêt pour la synchronisation manuelle');
+                            // NE PLUS synchroniser automatiquement - uniquement via les boutons
+                            // syncToGDrive();
+                        },
+                    });
+                    gisInited = true;
+                    console.log('✅ Token client initialisé');
+                    maybeEnableGDriveButtons();
+                } catch (error) {
+                    console.error('❌ Erreur init token client:', error);
+                    alert('⚠️ Erreur lors de l\'initialisation de l\'authentification Google.\n\nVérifie que ton CLIENT_ID est correct.');
+                }
+            };
+            gisScript.onerror = () => {
+                console.error('❌ Échec chargement Google Identity Services');
+                alert('⚠️ Impossible de charger les services Google.\n\nVérifie ta connexion Internet.');
+            };
+            document.head.appendChild(gisScript);
+
+            // Charger l'API Google (gapi)
+            const gapiScript = document.createElement('script');
+            gapiScript.src = 'https://apis.google.com/js/api.js';
+            gapiScript.onload = () => {
+                console.log('✅ Google API (gapi) chargé');
+                gapi.load('client', async () => {
+                    try {
+                        await gapi.client.init({
+                            apiKey: GDRIVE_CONFIG.API_KEY,
+                            discoveryDocs: GDRIVE_CONFIG.DISCOVERY_DOCS,
+                        });
+                        gapiInited = true;
+                        console.log('✅ GAPI client initialisé');
+                        maybeEnableGDriveButtons();
+                    } catch (error) {
+                        console.error('❌ Erreur init gapi client:', error);
+                        alert('⚠️ Erreur lors de l\'initialisation de l\'API Google Drive.\n\nVérifie que ton API_KEY est correcte.\n\nErreur: ' + error.message);
+                    }
+                });
+            };
+            gapiScript.onerror = () => {
+                console.error('❌ Échec chargement Google API');
+                alert('⚠️ Impossible de charger l\'API Google.\n\nVérifie ta connexion Internet.');
+            };
+            document.head.appendChild(gapiScript);
+        }
+
+        function maybeEnableGDriveButtons() {
+            if (gapiInited && gisInited) {
+                // Vérifier si déjà connecté
+                const savedToken = localStorage.getItem('gdriveAccessToken');
+                if (savedToken) {
+                    gdriveAccessToken = savedToken;
+                    console.log('🔑 Token trouvé - Connecté à Google Drive');
+                    updateGDriveStatus('connected');
+                    // NE PAS charger automatiquement - l'utilisateur décide via les boutons
+                    // loadFromGDrive();
+                }
+            }
+        }
+
+        function updateGDriveStatus(status, message = '') {
+            const statusDiv = document.getElementById('gdrive-status');
+            const statusText = document.getElementById('gdrive-status-text');
+            const connectBtn = document.getElementById('gdrive-connect-btn');
+            const controlsDiv = document.getElementById('gdrive-controls');
+            
+            statusDiv.style.display = 'block';
+            
+            switch(status) {
+                case 'connected':
+                    connectBtn.style.display = 'none';
+                    controlsDiv.style.display = 'flex';
+                    statusDiv.style.borderLeftColor = 'var(--accent-running)';
+                    statusText.innerHTML = '☁️ Connecté à Google Drive';
+                    break;
+                case 'syncing':
+                    statusDiv.style.borderLeftColor = 'var(--accent-hyrox)';
+                    statusText.innerHTML = '⏳ Synchronisation en cours...';
+                    break;
+                case 'synced':
+                    connectBtn.style.display = 'none';
+                    controlsDiv.style.display = 'flex';
+                    statusDiv.style.borderLeftColor = '#10b981';
+                    const now = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+                    statusText.innerHTML = '✅ Synchronisé (' + now + ')';
+                    break;
+                case 'error':
+                    statusDiv.style.borderLeftColor = 'var(--accent-cardio)';
+                    statusText.innerHTML = '❌ Erreur : ' + message + ' <button class="btn btn-small" onclick="connectToGDrive()" style="margin-left: 10px;">Reconnecter</button>';
+                    break;
+                case 'offline':
+                    statusDiv.style.borderLeftColor = '#6b7280';
+                    statusText.innerHTML = '📴 Mode hors ligne';
+                    break;
+            }
+        }
+
+        async function connectToGDrive() {
+            // Vérifier si les identifiants sont configurés
+            if (GDRIVE_CONFIG.CLIENT_ID === 'VOTRE_CLIENT_ID_ICI' || GDRIVE_CONFIG.API_KEY === 'VOTRE_API_KEY_ICI') {
+                alert('⚠️ Configuration Google Drive requise !\n\n' +
+                      'Pour utiliser la synchronisation Google Drive, tu dois :\n\n' +
+                      '1. Créer un projet Google Cloud\n' +
+                      '2. Obtenir un Client ID et une API Key\n' +
+                      '3. Les configurer dans le fichier HTML\n\n' +
+                      'Consulte le fichier GUIDE_GOOGLE_DRIVE.md pour les instructions détaillées.\n\n' +
+                      'En attendant, tes données sont sauvegardées localement et tu peux les exporter en Excel.');
+                return;
+            }
+            
+            // Vérifier si les API sont chargées
+            if (!gapiInited || !gisInited) {
+                const message = '⏳ Chargement des API Google en cours...\n\n' +
+                              'Status:\n' +
+                              (gapiInited ? '✅' : '⏳') + ' API Google Drive\n' +
+                              (gisInited ? '✅' : '⏳') + ' Service d\'authentification\n\n' +
+                              'Patiente quelques secondes et réessaye.\n\n' +
+                              'Si le problème persiste:\n' +
+                              '1. Ouvre la console (F12)\n' +
+                              '2. Vérifie les erreurs\n' +
+                              '3. Consulte le guide de dépannage';
+                alert(message);
+                
+                // Log pour debug
+                console.log('Status du chargement:', { gapiInited, gisInited });
+                return;
+            }
+            
+            if (!gdriveAccessToken) {
+                console.log('🔐 Demande d\'autorisation OAuth...');
+                tokenClient.requestAccessToken({ prompt: 'consent' });
+            } else {
+                await syncToGDrive();
+            }
+        }
+
+        async function syncToGDrive() {
+            if (!gdriveAccessToken) {
+                updateGDriveStatus('error', 'Non connecté');
+                return;
+            }
+
+            updateGDriveStatus('syncing');
+
+            try {
+                const data = {
+                    sessions: sessions,
+                    exerciseDatabase: exerciseDatabase,
+                    hyroxExercises: hyroxExercises,
+                    lastSync: new Date().toISOString()
+                };
+
+                const content = JSON.stringify(data);
+                const blob = new Blob([content], { type: 'application/json' });
+
+                // Si le fichier existe déjà, le mettre à jour, sinon le créer
+                if (gdriveFileId) {
+                    // Update
+                    const response = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${gdriveFileId}?uploadType=media`, {
+                        method: 'PATCH',
+                        headers: {
+                            'Authorization': 'Bearer ' + gdriveAccessToken,
+                            'Content-Type': 'application/json'
+                        },
+                        body: blob
+                    });
+
+                    if (response.ok) {
+                        updateGDriveStatus('synced');
+                    } else {
+                        throw new Error('Erreur de mise à jour');
+                    }
+                } else {
+                    // Create
+                    const metadata = {
+                        name: GDRIVE_CONFIG.FILE_NAME,
+                        mimeType: 'application/json'
+                    };
+
+                    const form = new FormData();
+                    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+                    form.append('file', blob);
+
+                    const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': 'Bearer ' + gdriveAccessToken
+                        },
+                        body: form
+                    });
+
+                    if (response.ok) {
+                        const result = await response.json();
+                        gdriveFileId = result.id;
+                        localStorage.setItem('gdriveFileId', gdriveFileId);
+                        updateGDriveStatus('synced');
+                    } else {
+                        throw new Error('Erreur de création');
+                    }
+                }
+            } catch (error) {
+                console.error('Erreur de sync:', error);
+                updateGDriveStatus('error', error.message);
+            }
+        }
+
+        async function loadFromGDrive(silent = false) {
+            if (!gdriveAccessToken) {
+                if (!silent) alert('❌ Non connecté à Google Drive');
+                return;
+            }
+
+            updateGDriveStatus('syncing');
+            console.log('📥 Chargement depuis Google Drive...');
+
+            try {
+                // Chercher TOUS les fichiers avec ce nom
+                const searchResponse = await fetch(
+                    `https://www.googleapis.com/drive/v3/files?q=name='${GDRIVE_CONFIG.FILE_NAME}' and trashed=false&orderBy=modifiedTime desc&fields=files(id,name,modifiedTime)`,
+                    {
+                        headers: {
+                            'Authorization': 'Bearer ' + gdriveAccessToken
+                        }
+                    }
+                );
+
+                if (!searchResponse.ok) {
+                    throw new Error('Erreur de recherche');
+                }
+
+                const searchResult = await searchResponse.json();
+                
+                if (searchResult.files && searchResult.files.length > 0) {
+                    // S'il y a plusieurs fichiers, supprimer les anciens et garder le plus récent
+                    if (searchResult.files.length > 1) {
+                        console.warn('⚠️ Plusieurs fichiers trouvés (' + searchResult.files.length + '), nettoyage...');
+                        
+                        // Garder le premier (le plus récent)
+                        gdriveFileId = searchResult.files[0].id;
+                        
+                        // Supprimer les autres
+                        for (let i = 1; i < searchResult.files.length; i++) {
+                            try {
+                                await fetch(`https://www.googleapis.com/drive/v3/files/${searchResult.files[i].id}`, {
+                                    method: 'DELETE',
+                                    headers: {
+                                        'Authorization': 'Bearer ' + gdriveAccessToken
+                                    }
+                                });
+                                console.log('🗑️ Fichier dupliqué supprimé:', searchResult.files[i].id);
+                            } catch (e) {
+                                console.error('Erreur suppression duplicata:', e);
+                            }
+                        }
+                    } else {
+                        gdriveFileId = searchResult.files[0].id;
+                    }
+                    
+                    localStorage.setItem('gdriveFileId', gdriveFileId);
+                    console.log('📄 Fichier trouvé:', gdriveFileId);
+
+                    // Télécharger le contenu
+                    const downloadResponse = await fetch(
+                        `https://www.googleapis.com/drive/v3/files/${gdriveFileId}?alt=media`,
+                        {
+                            headers: {
+                                'Authorization': 'Bearer ' + gdriveAccessToken
+                            }
+                        }
+                    );
+
+                    if (!downloadResponse.ok) {
+                        throw new Error('Erreur de téléchargement');
+                    }
+
+                    const data = await downloadResponse.json();
+                    console.log('📦 Données chargées:', data);
+                    
+                    // Charger directement sans confirmation si silent
+                    if (silent) {
+                        sessions = data.sessions || [];
+                        exerciseDatabase = data.exerciseDatabase || {};
+                        hyroxExercises = data.hyroxExercises || [];
+                        saveData();
+                        renderAll();
+                        renderProgression();
+                        updateGDriveStatus('synced');
+                        console.log('✅ Données chargées automatiquement');
+                    } else {
+                        // Comparer avec les données locales
+                        const localLastModified = localStorage.getItem('lastModified') || '1970-01-01';
+                        const remoteLastSync = data.lastSync || '1970-01-01';
+
+                        const message = '📥 Charger les données depuis Google Drive ?\n\n' +
+                                      'Dernière sync Drive: ' + new Date(remoteLastSync).toLocaleString('fr-FR') + '\n' +
+                                      'Dernière modif locale: ' + new Date(localLastModified).toLocaleString('fr-FR') + '\n\n' +
+                                      'Nombre de séances sur Drive: ' + (data.sessions ? data.sessions.length : 0) + '\n' +
+                                      'Nombre de séances en local: ' + sessions.length + '\n\n' +
+                                      '⚠️ Cela écrasera tes données locales !';
+                        
+                        if (confirm(message)) {
+                            sessions = data.sessions || [];
+                            exerciseDatabase = data.exerciseDatabase || {};
+                            hyroxExercises = data.hyroxExercises || [];
+                            saveData();
+                            renderAll();
+                            renderProgression();
+                            updateGDriveStatus('synced');
+                            alert('✅ Données chargées depuis Drive !');
+                        } else {
+                            updateGDriveStatus('connected');
+                        }
+                    }
+                } else {
+                    // Pas de fichier trouvé
+                    console.log('📝 Aucun fichier trouvé, création...');
+                    if (!silent) {
+                        if (confirm('Aucune donnée trouvée sur Drive.\n\nSauvegarder les données actuelles ?')) {
+                            await syncToGDrive();
+                        } else {
+                            updateGDriveStatus('connected');
+                        }
+                    } else {
+                        updateGDriveStatus('connected');
+                    }
+                }
+            } catch (error) {
+                console.error('❌ Erreur de chargement:', error);
+                // Si token invalide, redemander la connexion
+                if (error.message.includes('401') || error.status === 401) {
+                    localStorage.removeItem('gdriveAccessToken');
+                    gdriveAccessToken = null;
+                    updateGDriveStatus('error', 'Session expirée');
+                } else {
+                    updateGDriveStatus('error', error.message);
+                }
+                if (!silent) {
+                    alert('❌ Erreur de chargement:\n' + error.message);
+                }
+            }
+        }
+
+        // NE PLUS surcharger saveData pour sync auto - sync manuelle uniquement
+        // const originalSaveData = saveData;
+        // saveData = function() {
+        //     originalSaveData();
+        //     localStorage.setItem('lastModified', new Date().toISOString());
+        //     
+        //     // Sync auto vers Google Drive si connecté
+        //     if (gdriveAccessToken) {
+        //         syncToGDrive();
+        //     }
+        // };
+
+        // Fonctions pour les boutons de contrôle manuel
+        async function manualLoadFromGDrive() {
+            await loadFromGDrive(false); // false = avec confirmation
+        }
+
+        async function manualSaveToGDrive() {
+            if (!gdriveAccessToken) {
+                alert('❌ Non connecté à Google Drive');
+                return;
+            }
+            
+            if (confirm('💾 Sauvegarder les données actuelles sur Google Drive ?\n\nCela écrasera les données sur Drive.')) {
+                await syncToGDrive();
+                alert('✅ Données sauvegardées sur Drive !');
+            }
+        }
+
+        function disconnectFromGDrive() {
+            if (confirm('🔌 Se déconnecter de Google Drive ?\n\nTes données locales seront conservées.')) {
+                localStorage.removeItem('gdriveAccessToken');
+                localStorage.removeItem('gdriveFileId');
+                gdriveAccessToken = null;
+                gdriveFileId = null;
+                
+                document.getElementById('gdrive-connect-btn').style.display = 'inline-block';
+                document.getElementById('gdrive-controls').style.display = 'none';
+                document.getElementById('gdrive-status').style.display = 'none';
+                
+                alert('✅ Déconnecté de Google Drive');
+            }
+        }
+
+        // Charger les API au démarrage
+        loadGoogleAPIs();
+
+        document.getElementById('session-type').addEventListener('change', (e) => {
+            updateSessionNameOptions(e.target.value);
+            populateCopySessionOptions(e.target.value);
+        });
+        document.getElementById('prev-month').addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() - 1); renderCalendar(); });
+        document.getElementById('next-month').addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() + 1); renderCalendar(); });
+        document.getElementById('today-btn').addEventListener('click', () => { currentDate = new Date(); renderCalendar(); });
+        document.getElementById('add-session-btn').addEventListener('click', () => openModal());
+        document.getElementById('close-modal').addEventListener('click', closeModal);
+        document.getElementById('cancel-btn').addEventListener('click', closeModal);
+        document.getElementById('close-details-modal').addEventListener('click', closeDetailsModal);
+        document.getElementById('close-details-btn').addEventListener('click', closeDetailsModal);
+        document.getElementById('add-exercise-btn').addEventListener('click', openExerciseModal);
+        document.getElementById('close-exercise-modal').addEventListener('click', closeExerciseModal);
+        document.getElementById('cancel-exercise-btn').addEventListener('click', closeExerciseModal);
+        document.getElementById('edit-session-info-btn').addEventListener('click', () => { 
+            const sessionId = currentSessionId; 
+            closeDetailsModal(); 
+            editSession(sessionId); 
+        });
+        document.getElementById('delete-session-btn').addEventListener('click', () => deleteSession(currentSessionId));
+        document.getElementById('add-exercise-db-btn').addEventListener('click', openExerciseDbModal);
+        document.getElementById('generate-sets-table').addEventListener('click', generateSetsTable);
+        document.getElementById('copy-from-session').addEventListener('change', (e) => showCopyPreview(e.target.value));
+        document.getElementById('export-excel-btn').addEventListener('click', exportToExcel);
+        document.getElementById('gdrive-connect-btn').addEventListener('click', connectToGDrive);
+        document.getElementById('gdrive-load-btn').addEventListener('click', manualLoadFromGDrive);
+        document.getElementById('gdrive-save-btn').addEventListener('click', manualSaveToGDrive);
+        document.getElementById('gdrive-disconnect-btn').addEventListener('click', disconnectFromGDrive);
+        document.getElementById('close-exercise-db-modal').addEventListener('click', closeExerciseDbModal);
+        document.getElementById('cancel-exercise-db-btn').addEventListener('click', closeExerciseDbModal);
+        document.getElementById('exercise-db-type').addEventListener('change', updateMuscleFieldVisibility);
+        document.getElementById('filter-session-type').addEventListener('change', () => {
+            const muscleFilter = document.getElementById('filter-muscle-group');
+            if (document.getElementById('filter-session-type').value === 'Musculation') {
+                muscleFilter.style.display = 'block';
+                muscleFilter.innerHTML = '<option value="all">Tous les muscles</option>';
+                Object.keys(muscleGroups).forEach(muscle => {
+                    muscleFilter.innerHTML += '<option value="' + muscle + '">' + muscle + '</option>';
+                });
+            } else {
+                muscleFilter.style.display = 'none';
+            }
+            renderExerciseList();
+        });
+        document.getElementById('filter-muscle-group').addEventListener('change', renderExerciseList);
+
+        // Inline new exercise handlers
+        document.getElementById('toggle-new-exercise-inline').addEventListener('click', () => {
+            const session = sessions.find(s => s.id === currentSessionId);
+            const muscleSelect = document.getElementById('new-exercise-muscle-inline');
+            muscleSelect.style.display = (session && session.type === 'Musculation💪') ? 'block' : 'none';
+            document.getElementById('add-new-exercise-inline').style.display = 'block';
+            document.getElementById('toggle-new-exercise-inline').style.display = 'none';
+        });
+
+        document.getElementById('cancel-new-exercise-inline').addEventListener('click', () => {
+            document.getElementById('add-new-exercise-inline').style.display = 'none';
+            document.getElementById('toggle-new-exercise-inline').style.display = 'block';
+            document.getElementById('new-exercise-name-inline').value = '';
+            document.getElementById('new-exercise-muscle-inline').value = '';
+        });
+
+        document.getElementById('save-new-exercise-inline').addEventListener('click', () => {
+            const session = sessions.find(s => s.id === currentSessionId);
+            if (!session) return;
+
+            const newExerciseName = document.getElementById('new-exercise-name-inline').value.trim();
+            
+            if (!newExerciseName) {
+                alert('Veuillez entrer un nom d\'exercice');
+                return;
+            }
+
+            if (session.type === 'Musculation💪') {
+                const muscleGroup = document.getElementById('new-exercise-muscle-inline').value;
+                
+                if (!muscleGroup) {
+                    alert('Veuillez sélectionner le muscle principal sollicité');
+                    return;
+                }
+
+                if (!exerciseDatabase[newExerciseName]) {
+                    exerciseDatabase[newExerciseName] = muscleGroup;
+                    saveData();
+                    updateExerciseNameOptions(session.name, session.type);
+                    document.getElementById('exercise-name-select').value = newExerciseName;
+                } else {
+                    alert('Cet exercice existe déjà dans la base');
+                }
+            } else if (session.type === 'Hyrox🤖') {
+                if (!hyroxExercises.includes(newExerciseName)) {
+                    hyroxExercises.push(newExerciseName);
+                    saveData();
+                    updateExerciseNameOptions(session.name, session.type);
+                    document.getElementById('exercise-name-select').value = newExerciseName;
+                } else {
+                    alert('Cet exercice existe déjà dans la liste Hyrox');
+                }
+            }
+
+            document.getElementById('add-new-exercise-inline').style.display = 'none';
+            document.getElementById('toggle-new-exercise-inline').style.display = 'block';
+            document.getElementById('new-exercise-name-inline').value = '';
+            document.getElementById('new-exercise-muscle-inline').value = '';
+        });
+
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.classList.remove('active');
+                    if (modal.id === 'session-modal') closeModal();
+                    else if (modal.id === 'details-modal') closeDetailsModal();
+                    else if (modal.id === 'exercise-modal') closeExerciseModal();
+                    else if (modal.id === 'exercise-db-modal') closeExerciseDbModal();
+                }
+            });
+        });
+
+        document.querySelectorAll('.nav-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabName = tab.dataset.tab;
+                document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                document.getElementById(tabName + '-tab').classList.add('active');
+                
+                if (tabName === 'stats') renderStats();
+                else if (tabName === 'sessions') renderSessionsList();
+                else if (tabName === 'exercises') renderExerciseList();
+                else if (tabName === 'progression') renderProgression();
+            });
+        });
+
+        loadData();
+        renderAll();
+    </script>
+</body>
+</html>
