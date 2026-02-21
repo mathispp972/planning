@@ -2827,35 +2827,32 @@
             e.target.value = '';
         });
 
-        // Historique des backups
-        document.getElementById('show-backups-btn').addEventListener('click', () => {
-            renderBackupList();
-            document.getElementById('backup-modal').style.display = 'flex';
-        });
-
-        document.getElementById('close-backup-modal').addEventListener('click', () => {
-            document.getElementById('backup-modal').style.display = 'none';
-        });
-
-        document.getElementById('create-backup-btn').addEventListener('click', () => {
-            saveBackup('Sauvegarde manuelle du ' + new Date().toLocaleString('fr-FR'));
-            renderBackupList();
-            alert('✅ Sauvegarde créée !');
-        });
-
-        // Backup auto avant chaque sync Drive
-        const _originalManualSave = manualSaveToGDrive;
+        // Wrappers Drive avec backup auto (déclarés avant les listeners)
         async function manualSaveToGDriveWithBackup() {
             saveBackup('Avant sync Drive du ' + new Date().toLocaleString('fr-FR'));
-            await _originalManualSave();
+            await manualSaveToGDrive();
         }
 
-        // Backup auto avant chaque chargement Drive
-        const _originalManualLoad = manualLoadFromGDrive;
         async function manualLoadFromGDriveWithBackup() {
             saveBackup('Avant chargement Drive du ' + new Date().toLocaleString('fr-FR'));
-            await _originalManualLoad();
+            await manualLoadFromGDrive();
         }
+
+        // Historique des backups - listeners attachés via DOMContentLoaded pour garantir que la modal existe
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('show-backups-btn').addEventListener('click', () => {
+                renderBackupList();
+                document.getElementById('backup-modal').style.display = 'flex';
+            });
+            document.getElementById('close-backup-modal').addEventListener('click', () => {
+                document.getElementById('backup-modal').style.display = 'none';
+            });
+            document.getElementById('create-backup-btn').addEventListener('click', () => {
+                saveBackup('Sauvegarde manuelle du ' + new Date().toLocaleString('fr-FR'));
+                renderBackupList();
+                alert('✅ Sauvegarde créée !');
+            });
+        });
 
         updateBackupCount();
     </script>
