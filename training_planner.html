@@ -1506,9 +1506,9 @@
                         // Pour les séances de musculation : vider le RPE et remettre le statut en attente
                         if (type === 'Musculation💪') {
                             copiedDetails.forEach(exercise => {
-                                if (exercise.sets) {
-                                    exercise.sets.forEach(set => {
-                                        set.rpe = '';
+                                if (exercise.setsData) {
+                                    exercise.setsData.forEach(set => {
+                                        set.rpe = null;
                                         set.status = 'none';
                                         delete set.validated;
                                     });
